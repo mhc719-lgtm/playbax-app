@@ -7,34 +7,38 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
-import android.os.SystemClock
-import android.view.Choreographer
 import android.view.View
 import android.view.WindowManager
 import android.widget.SeekBar
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 
-class MainActivity : AppCompatActivity(), Choreographer.FrameCallback {
+class MainActivity : AppCompatActivity() {
 
     private lateinit var ui: MainActivityViews
     private val ringBuffer = PlayBaxFrameRingBuffer()
     private lateinit var cameraEngine: PlayBaxCameraEngine
 
-    private var isDelayedStreamActive = false
+    private var isInCameraStage = false
+    private var isOverlayHidden = false
     private var isVideoRecordingNow = false
+    private var pendingLaunchAfterPermission = false
     private var lastAppliedScreenCount = -1
     private var lastAppliedSideBySide = false
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { _ ->
-        syncUiState()
-        if (hasCameraPermission()) cameraEngine.bindCameraIfNeeded(forceRebind = true)
+        if (hasCameraPermission() && pendingLaunchAfterPermission) {
+            pendingLaunchAfterPermission = false
+            enterCameraStage()
+        } else syncUiState()
     }
 
     private val prefsReceiver = object : BroadcastReceiver() {
@@ -44,145 +48,145 @@ class MainActivity : AppCompatActivity(), Choreographer.FrameCallback {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-
-        ui = MainActivityUiBuilder.build(this, PlayBaxMultiScreenStage(this))
+        val stage = PlayBaxMultiScreenStage(this)
+        ui = MainActivityUiBuilder.build(this, stage)
         setContentView(ui.rootFrame)
 
         cameraEngine = PlayBaxCameraEngine(
-            context = this,
-            lifecycleOwner = this,
-            ringBuffer = ringBuffer,
-            onStatusToast = { msg -> Toast.makeText(this, msg, Toast.LENGTH_SHORT).show() },
-            onRecordingStateChanged = { recording ->
-                isVideoRecordingNow = recording
-                syncUiState()
-            }
-        )
-
-        wireControls()
-        registerPrefsReceiver()
-        syncUiState()
-
-        if (!hasCameraPermission()) requestCameraPermissions()
-        else cameraEngine.bindCameraIfNeeded(forceRebind = true)
-    }
-
-    private fun wireControls() {
-        ui.multiScreenStage.panels.forEach { panel ->
-            panel.setOnClickListener {
-                PlayBaxPreferences.setControlsMinimized(this, !PlayBaxPreferences.isControlsMinimized(this))
-            }
-        }
-        ui.dragHandleContainer.setOnClickListener { PlayBaxPreferences.setControlsMinimized(this, true) }
-        ui.minimizedTripodPill.setOnClickListener { PlayBaxPreferences.setControlsMinimized(this, false) }
-
-        ui.minusBtn.setOnClickListener {
-            PlayBaxPreferences.setDelaySeconds(this, PlayBaxPreferences.getDelaySeconds(this) - 1)
-        }
-        ui.plusBtn.setOnClickListener {
-            PlayBaxPreferences.setDelaySeconds(this, PlayBaxPreferences.getDelaySeconds(this) + 1)
-        }
-
-        ui.delaySlider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                if (fromUser) {
-                    PlayBaxPreferences.setDelaySeconds(
-                        this@MainActivity,
-                        progress + PlayBaxPreferences.MIN_DELAY_SECONDS
+            context = this, lifecycleOwner = this, previewView = stage.previewView, ringBuffer = ringBuffer,
+            onFramesDecoded = { results, delaySec ->
+                if (!isInCameraStage) return@PlayBaxCameraEngine
+                for (i in results.indices) {
+                    val res = results[i]
+                    ui.multiScreenStage.panels[i].updateFrameState(
+                        res.bitmap, (i + 1) * delaySec, res.isWarmingUp, res.remainingWarmupSeconds, res.bufferFillProgress
                     )
                 }
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
+            },
+            onStatusToast = { msg -> Toast.makeText(this, msg, Toast.LENGTH_SHORT).show() },
+            onRecordingStateChanged = { recording -> isVideoRecordingNow = recording; syncUiState() }
+        )
 
-        ui.screenSpinnerChip.setOnClickListener { anchor ->
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (isInCameraStage) returnToHomeSettings()
+                else { isEnabled = false; onBackPressedDispatcher.onBackPressed() }
+            }
+        })
+        wireHomeControls()
+        wireCameraControls()
+        registerPrefsReceiver()
+        syncUiState()
+    }
+
+    private fun wireHomeControls() {
+        ui.screensTile.card.setOnClickListener { anchor ->
             val d = PlayBaxPreferences.getDelaySeconds(this)
             val idx = (PlayBaxPreferences.getScreenCount(this) - 1).coerceIn(0, 2)
             GoogleStyleWidgets.showGooglePopupMenu(this, anchor, PlayBaxPreferences.getScreenMenuOptions(d), idx) {
                 PlayBaxPreferences.setScreenCount(this, it + 1)
             }
         }
-
-        ui.recordSpinnerChip.setOnClickListener { anchor ->
-            val idx = if (PlayBaxPreferences.isRecordEnabled(this)) 1 else 0
-            GoogleStyleWidgets.showGooglePopupMenu(this, anchor, PlayBaxPreferences.getRecordMenuOptions(), idx) {
-                val enableRec = (it == 1)
-                PlayBaxPreferences.setRecordEnabled(this, enableRec)
-                if (isDelayedStreamActive) {
-                    if (enableRec) cameraEngine.startRecordingIfNeeded()
-                    else cameraEngine.stopRecordingIfActive()
-                }
-            }
-        }
-
-        ui.lensQuickChip.setOnClickListener { anchor ->
-            val idx = PlayBaxPreferences.getLensMode(this)
-            GoogleStyleWidgets.showGooglePopupMenu(this, anchor, PlayBaxPreferences.getLensMenuOptions(), idx) {
-                PlayBaxPreferences.setLensMode(this, it)
-                ringBuffer.clear()
-                cameraEngine.bindCameraIfNeeded(forceRebind = true)
-            }
-        }
-
-        ui.layoutQuickChip.setOnClickListener { anchor ->
+        ui.layoutTile.card.setOnClickListener { anchor ->
             val idx = PlayBaxPreferences.getLayoutMode(this)
             GoogleStyleWidgets.showGooglePopupMenu(this, anchor, PlayBaxPreferences.getLayoutMenuOptions(), idx) {
                 PlayBaxPreferences.setLayoutMode(this, it)
             }
         }
-
-        ui.grantCameraBtn.setOnClickListener { requestCameraPermissions() }
-
-        ui.startDelayBtn.setOnClickListener {
-            if (!hasCameraPermission()) {
-                requestCameraPermissions()
-                return@setOnClickListener
+        ui.captureTile.card.setOnClickListener { anchor ->
+            val idx = if (PlayBaxPreferences.isRecordEnabled(this)) 1 else 0
+            GoogleStyleWidgets.showGooglePopupMenu(this, anchor, PlayBaxPreferences.getRecordMenuOptions(), idx) {
+                PlayBaxPreferences.setRecordEnabled(this, it == 1)
             }
-            ringBuffer.clear()
-            isDelayedStreamActive = true
-            if (PlayBaxPreferences.isRecordEnabled(this)) cameraEngine.startRecordingIfNeeded()
-            syncUiState()
         }
-
-        ui.tripodViewBtn.setOnClickListener { PlayBaxPreferences.setControlsMinimized(this, true) }
-        ui.resetBufferBtn.setOnClickListener {
-            ringBuffer.clear()
-            Toast.makeText(this, "Delay buffer reset", Toast.LENGTH_SHORT).show()
+        ui.lensTile.card.setOnClickListener { anchor ->
+            val idx = PlayBaxPreferences.getLensMode(this)
+            GoogleStyleWidgets.showGooglePopupMenu(this, anchor, PlayBaxPreferences.getLensMenuOptions(), idx) {
+                PlayBaxPreferences.setLensMode(this, it)
+            }
         }
-        ui.pauseDelayBtn.setOnClickListener {
-            isDelayedStreamActive = false
-            cameraEngine.stopRecordingIfActive()
-            ringBuffer.clear()
-            syncUiState()
+        ui.cascadeTile.card.setOnClickListener {
+            PlayBaxPreferences.setScreenCount(this, (PlayBaxPreferences.getScreenCount(this) % 3) + 1)
+        }
+        ui.minusBtn.setOnClickListener {
+            PlayBaxPreferences.setDelaySeconds(this, PlayBaxPreferences.getDelaySeconds(this) - 1)
+        }
+        ui.plusBtn.setOnClickListener {
+            PlayBaxPreferences.setDelaySeconds(this, PlayBaxPreferences.getDelaySeconds(this) + 1)
+        }
+        ui.delaySlider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (fromUser) PlayBaxPreferences.setDelaySeconds(this@MainActivity, progress + PlayBaxPreferences.MIN_DELAY_SECONDS)
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+        ui.presetButtons.forEach { (sec, btn) ->
+            btn.setOnClickListener { PlayBaxPreferences.setDelaySeconds(this, sec) }
+        }
+        ui.resetDefaultsBtn.setOnClickListener {
+            PlayBaxPreferences.setDelaySeconds(this, 5)
+            PlayBaxPreferences.setScreenCount(this, 1)
+            PlayBaxPreferences.setLayoutMode(this, PlayBaxPreferences.LAYOUT_AUTO)
+            PlayBaxPreferences.setRecordEnabled(this, false)
+            PlayBaxPreferences.setLensMode(this, PlayBaxPreferences.LENS_REAR_WIDE)
+            Toast.makeText(this, "Reset to default settings", Toast.LENGTH_SHORT).show()
+        }
+        ui.applyLaunchBtn.setOnClickListener {
+            if (!hasCameraPermission()) {
+                pendingLaunchAfterPermission = true
+                permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO))
+            } else {
+                enterCameraStage()
+            }
         }
     }
 
-    override fun doFrame(frameTimeNanos: Long) {
-        val delaySec = PlayBaxPreferences.getDelaySeconds(this)
-        val screenCount = PlayBaxPreferences.getScreenCount(this)
-        val nowMs = SystemClock.elapsedRealtime()
-        cameraEngine.maxRetentionMs = (screenCount * delaySec * 1000L)
-
-        for (i in 0 until screenCount) {
-            val panel = ui.multiScreenStage.panels[i]
-            val slotDelaySec = (i + 1) * delaySec
-            val res = ringBuffer.decodeFrameForDelay(
-                nowMs = nowMs,
-                delayMs = slotDelaySec * 1000L,
-                reusableBitmap = panel.frameBitmap,
-                streamActive = isDelayedStreamActive
-            )
-            panel.updateFrameState(
-                bitmap = res.bitmap,
-                targetDelaySec = slotDelaySec,
-                active = isDelayedStreamActive,
-                warmingUp = res.isWarmingUp,
-                remainingSec = res.remainingWarmupSeconds,
-                progress = res.bufferFillProgress
-            )
+    private fun wireCameraControls() {
+        ui.backToHomeBtn.setOnClickListener { returnToHomeSettings() }
+        ui.freezeToggleBtn.setOnClickListener {
+            cameraEngine.isFrozen = !cameraEngine.isFrozen
+            syncUiState()
         }
-        Choreographer.getInstance().postFrameCallback(this)
+        ui.recordActionBtn.setOnClickListener {
+            if (isVideoRecordingNow) cameraEngine.stopRecordingIfActive()
+            else {
+                PlayBaxPreferences.setRecordEnabled(this, true)
+                cameraEngine.startRecordingIfNeeded()
+            }
+            syncUiState()
+        }
+        ui.fullscreenToggleBtn.setOnClickListener {
+            isOverlayHidden = true
+            syncUiState()
+        }
+        ui.multiScreenStage.panels.forEach { panel ->
+            panel.setOnClickListener {
+                isOverlayHidden = !isOverlayHidden
+                syncUiState()
+            }
+        }
+    }
+
+    private fun enterCameraStage() {
+        isInCameraStage = true
+        isOverlayHidden = false
+        cameraEngine.isFrozen = false
+        ringBuffer.clear()
+        syncUiState()
+        cameraEngine.startCameraSession(forceRebind = true)
+        if (PlayBaxPreferences.isRecordEnabled(this)) {
+            ui.rootFrame.postDelayed({ if (isInCameraStage) cameraEngine.startRecordingIfNeeded() }, 600L)
+        }
+    }
+
+    private fun returnToHomeSettings() {
+        isInCameraStage = false
+        isOverlayHidden = false
+        cameraEngine.isFrozen = false
+        cameraEngine.stopStageSession()
+        ringBuffer.clear()
+        syncUiState()
     }
 
     private fun syncUiState() {
@@ -191,8 +195,33 @@ class MainActivity : AppCompatActivity(), Choreographer.FrameCallback {
         val layoutMode = PlayBaxPreferences.getLayoutMode(this)
         val recordEnabled = PlayBaxPreferences.isRecordEnabled(this)
         val lensMode = PlayBaxPreferences.getLensMode(this)
-        val minimized = PlayBaxPreferences.isControlsMinimized(this)
         val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+        ui.delayRingGauge.updateState(delaySec, screenCount)
+        ui.topModePill.text = if (recordEnabled) "● MP4 Capture" else "Memory Stream"
+        ui.screensTile.valueText.text = if (screenCount == 1) "1 Screen" else "$screenCount Screens"
+
+        val cascadeStr = when (screenCount) {
+            1 -> "+${delaySec}s"
+            2 -> "+${delaySec}s • +${delaySec * 2}s"
+            else -> "+${delaySec}s • +${delaySec * 2}s • +${delaySec * 3}s"
+        }
+        ui.screensTile.subtitleText.text = cascadeStr
+        ui.layoutTile.valueText.text = PlayBaxPreferences.getLayoutChipLabel(layoutMode, isLandscape)
+        ui.layoutTile.subtitleText.text = if (layoutMode == PlayBaxPreferences.LAYOUT_AUTO) "Portrait / Landscape" else "Locked orientation"
+        ui.captureTile.valueText.text = if (recordEnabled) "Record MP4" else "Memory Only"
+        ui.captureTile.subtitleText.text = if (recordEnabled) "Saves to Gallery" else "Unrecorded RAM"
+        ui.lensTile.valueText.text = PlayBaxPreferences.getLensChipLabel(lensMode)
+        ui.cascadeTile.valueText.text = cascadeStr
+
+        val targetProgress = delaySec - PlayBaxPreferences.MIN_DELAY_SECONDS
+        if (ui.delaySlider.progress != targetProgress) ui.delaySlider.progress = targetProgress
+
+        ui.presetButtons.forEach { (sec, btn) ->
+            val sel = (sec == delaySec)
+            btn.background = GoogleStyleWidgets.roundedDrawable(this, if (sel) "#0B57D0" else "#E6EAEE", 999)
+            btn.setTextColor(Color.parseColor(if (sel) "#FFFFFF" else "#1F1F1F"))
+        }
 
         val sideBySide = when (layoutMode) {
             PlayBaxPreferences.LAYOUT_PORTRAIT_STACKED -> false
@@ -205,44 +234,26 @@ class MainActivity : AppCompatActivity(), Choreographer.FrameCallback {
             lastAppliedSideBySide = sideBySide
         }
 
-        val targetProgress = delaySec - PlayBaxPreferences.MIN_DELAY_SECONDS
-        if (ui.delaySlider.progress != targetProgress) ui.delaySlider.progress = targetProgress
+        ui.homeSetupScroll.visibility = if (isInCameraStage) View.GONE else View.VISIBLE
+        ui.cameraStageContainer.visibility = if (isInCameraStage) View.VISIBLE else View.GONE
 
-        val cascadeSummary = when (screenCount) {
-            1 -> "+${delaySec}s"
-            2 -> "+${delaySec}s / +${delaySec * 2}s"
-            else -> "+${delaySec}s / +${delaySec * 2}s / +${delaySec * 3}s"
+        if (isInCameraStage) {
+            ui.cameraTopBar.visibility = if (isOverlayHidden) View.GONE else View.VISIBLE
+            ui.cameraBottomBar.visibility = if (isOverlayHidden) View.GONE else View.VISIBLE
+            ui.freezeToggleBtn.text = if (cameraEngine.isFrozen) "▶ Resume" else "⏸ Freeze"
+
+            if (isVideoRecordingNow) {
+                ui.cameraStatusPill.text = "● REC ($cascadeStr)"
+                ui.cameraStatusPill.background = GoogleStyleWidgets.roundedDrawable(this, "#FFDAD6", 999)
+                ui.recordActionBtn.text = "■ Stop Rec"
+                ui.recordActionBtn.background = GoogleStyleWidgets.roundedDrawable(this, "#B3261E", 999)
+            } else {
+                ui.cameraStatusPill.text = if (cameraEngine.isFrozen) "⏸ FROZEN ($cascadeStr)" else "● LIVE ($cascadeStr)"
+                ui.cameraStatusPill.background = GoogleStyleWidgets.roundedDrawable(this, "#E6A8F5EC", 999)
+                ui.recordActionBtn.text = "● Record MP4"
+                ui.recordActionBtn.background = GoogleStyleWidgets.roundedDrawable(this, "#0B57D0", 999)
+            }
         }
-        val modeTag = if (recordEnabled) "MP4 Rec" else "Memory"
-        ui.readoutBadge.text = "$cascadeSummary • $modeTag"
-
-        ui.screenSpinnerChip.text = GoogleStyleWidgets.formatSpinnerText(
-            PlayBaxPreferences.getScreenSpinnerLabel(screenCount, delaySec)
-        )
-        ui.recordSpinnerChip.text = GoogleStyleWidgets.formatSpinnerText(
-            PlayBaxPreferences.getRecordSpinnerLabel(recordEnabled)
-        )
-        ui.lensQuickChip.text = "✓ ${PlayBaxPreferences.getLensChipLabel(lensMode)} ▾"
-        ui.layoutQuickChip.text = "✓ ${PlayBaxPreferences.getLayoutChipLabel(layoutMode, isLandscape)} ▾"
-        ui.minimizedPillText.text = "▲  PlayBax ($cascadeSummary) • Tap for Controls"
-
-        if (isDelayedStreamActive) {
-            val dotHex = if (isVideoRecordingNow) GoogleStyleWidgets.GOOGLE_RED else GoogleStyleWidgets.GOOGLE_GREEN
-            ui.statusDot.background = MainActivityUiBuilder.pillDrawable(dotHex)
-            ui.statusText.text = if (isVideoRecordingNow) "REC • Delay $cascadeSummary" else "Live Delay ($cascadeSummary)"
-        } else {
-            ui.statusDot.background = MainActivityUiBuilder.pillDrawable(GoogleStyleWidgets.M3_ACCENT_LIGHT)
-            ui.statusText.text = "PlayBax Ready ($cascadeSummary)"
-        }
-
-        val camGranted = hasCameraPermission()
-        ui.grantCameraBtn.visibility = if (camGranted) View.GONE else View.VISIBLE
-        ui.mainActionSection.visibility = if (camGranted) View.VISIBLE else View.GONE
-        ui.startDelayBtn.visibility = if (isDelayedStreamActive) View.GONE else View.VISIBLE
-        ui.activeButtonsRow.visibility = if (isDelayedStreamActive) View.VISIBLE else View.GONE
-
-        ui.bottomDock.visibility = if (minimized) View.GONE else View.VISIBLE
-        ui.minimizedTripodPill.visibility = if (minimized) View.VISIBLE else View.GONE
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -253,17 +264,15 @@ class MainActivity : AppCompatActivity(), Choreographer.FrameCallback {
     override fun onResume() {
         super.onResume()
         syncUiState()
-        if (hasCameraPermission()) cameraEngine.bindCameraIfNeeded()
-        Choreographer.getInstance().postFrameCallback(this)
+        if (isInCameraStage && hasCameraPermission()) cameraEngine.startCameraSession()
     }
 
     override fun onPause() {
-        Choreographer.getInstance().removeFrameCallback(this)
+        if (isInCameraStage) cameraEngine.stopStageSession()
         super.onPause()
     }
 
     override fun onDestroy() {
-        Choreographer.getInstance().removeFrameCallback(this)
         try { unregisterReceiver(prefsReceiver) } catch (_: Exception) {}
         cameraEngine.shutdown()
         super.onDestroy()
@@ -271,10 +280,6 @@ class MainActivity : AppCompatActivity(), Choreographer.FrameCallback {
 
     private fun hasCameraPermission(): Boolean =
         ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-
-    private fun requestCameraPermissions() {
-        permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO))
-    }
 
     private fun registerPrefsReceiver() {
         val filter = IntentFilter(PlayBaxPreferences.ACTION_PREFS_CHANGED)

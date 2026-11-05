@@ -5,11 +5,13 @@ import android.graphics.BitmapFactory
 import kotlin.math.abs
 
 class FramePacket(
+    val id: Long,
     val timestampMs: Long,
     val jpegBytes: ByteArray
 )
 
 class DelayedFrameResult(
+    val packetId: Long,
     val bitmap: Bitmap?,
     val isWarmingUp: Boolean,
     val remainingWarmupSeconds: Float,
@@ -18,19 +20,21 @@ class DelayedFrameResult(
 
 /**
  * Thread-safe, memory-capped circular ring buffer holding compressed JPEG frames in RAM
- * for 1-30s (up to 3x cascading screens = 90s) without touching disk storage.
+ * for 1-30s (up to 3x cascading screens = 90s). All JPEG decoding runs outside the lock
+ * on a background worker thread so the UI thread never blocks.
  */
 class PlayBaxFrameRingBuffer {
 
     companion object {
         private const val MAX_MEMORY_BYTES = 72L * 1024L * 1024L // 72 MB safe cap
-        private const val MIN_FRAME_INTERVAL_MS = 38L // ~26 fps smooth target
+        private const val MIN_FRAME_INTERVAL_MS = 42L // ~24 fps smooth target
     }
 
     private val lock = Any()
     private val frames = ArrayList<FramePacket>(1200)
     private var totalBytesUsed: Long = 0L
     private var lastPushedTimestampMs: Long = 0L
+    private var nextPacketId: Long = 1L
 
     fun shouldAcceptFrame(nowMs: Long): Boolean {
         synchronized(lock) {
@@ -38,18 +42,25 @@ class PlayBaxFrameRingBuffer {
         }
     }
 
+    fun getLastPushedTimestampMs(): Long {
+        synchronized(lock) {
+            return lastPushedTimestampMs
+        }
+    }
+
     fun pushFrame(jpegBytes: ByteArray, timestampMs: Long, maxDelayMs: Long) {
         synchronized(lock) {
             lastPushedTimestampMs = timestampMs
-            frames.add(FramePacket(timestampMs, jpegBytes))
+            val pkt = FramePacket(nextPacketId++, timestampMs, jpegBytes)
+            frames.add(pkt)
             totalBytesUsed += jpegBytes.size
 
             val cutoffMs = timestampMs - (maxDelayMs + 1500L)
             var removeCount = 0
             while (removeCount < frames.size - 2) {
-                val pkt = frames[removeCount]
-                if (pkt.timestampMs < cutoffMs || totalBytesUsed > MAX_MEMORY_BYTES) {
-                    totalBytesUsed -= pkt.jpegBytes.size
+                val old = frames[removeCount]
+                if (old.timestampMs < cutoffMs || totalBytesUsed > MAX_MEMORY_BYTES) {
+                    totalBytesUsed -= old.jpegBytes.size
                     removeCount++
                 } else {
                     break
@@ -69,17 +80,11 @@ class PlayBaxFrameRingBuffer {
         }
     }
 
-    fun getMemoryUsageMb(): Float {
-        synchronized(lock) {
-            return totalBytesUsed / (1024f * 1024f)
-        }
-    }
-
     fun decodeFrameForDelay(
         nowMs: Long,
         delayMs: Long,
-        reusableBitmap: Bitmap?,
-        streamActive: Boolean
+        lastPacketId: Long,
+        currentBitmap: Bitmap?
     ): DelayedFrameResult {
         val packet: FramePacket
         val warmingUp: Boolean
@@ -88,34 +93,37 @@ class PlayBaxFrameRingBuffer {
 
         synchronized(lock) {
             if (frames.isEmpty()) {
-                return DelayedFrameResult(null, true, delayMs / 1000f, 0f)
+                return DelayedFrameResult(-1L, null, true, delayMs / 1000f, 0f)
             }
-            if (!streamActive) {
+            val oldestMs = frames.first().timestampMs
+            val spanMs = (nowMs - oldestMs).coerceAtLeast(0L)
+            if (spanMs < delayMs) {
                 packet = frames.last()
+                warmingUp = true
+                remainingSec = ((delayMs - spanMs).coerceAtLeast(0L)) / 1000f
+                fillProgress = (spanMs.toFloat() / delayMs.toFloat()).coerceIn(0f, 1f)
+            } else {
+                val targetMs = nowMs - delayMs
+                packet = findClosestPacketLocked(targetMs)
                 warmingUp = false
                 remainingSec = 0f
                 fillProgress = 1f
-            } else {
-                val oldestMs = frames.first().timestampMs
-                val spanMs = (nowMs - oldestMs).coerceAtLeast(0L)
-                if (spanMs < delayMs) {
-                    // Still accumulating initial delay history: show live feed with countdown
-                    packet = frames.last()
-                    warmingUp = true
-                    remainingSec = ((delayMs - spanMs).coerceAtLeast(0L)) / 1000f
-                    fillProgress = (spanMs.toFloat() / delayMs.toFloat()).coerceIn(0f, 1f)
-                } else {
-                    val targetMs = nowMs - delayMs
-                    packet = findClosestPacketLocked(targetMs)
-                    warmingUp = false
-                    remainingSec = 0f
-                    fillProgress = 1f
-                }
             }
         }
 
-        val decoded = decodeJpeg(packet.jpegBytes, reusableBitmap)
-        return DelayedFrameResult(decoded, warmingUp, remainingSec, fillProgress)
+        // Skip re-decoding if this screen already displays this exact packet!
+        if (packet.id == lastPacketId && currentBitmap != null && !currentBitmap.isRecycled) {
+            return DelayedFrameResult(packet.id, currentBitmap, warmingUp, remainingSec, fillProgress)
+        }
+
+        val decoded = decodeJpegNewBitmap(packet.jpegBytes)
+        return DelayedFrameResult(
+            packetId = packet.id,
+            bitmap = decoded ?: currentBitmap,
+            isWarmingUp = warmingUp,
+            remainingWarmupSeconds = remainingSec,
+            bufferFillProgress = fillProgress
+        )
     }
 
     private fun findClosestPacketLocked(targetMs: Long): FramePacket {
@@ -139,26 +147,12 @@ class PlayBaxFrameRingBuffer {
         }
     }
 
-    private fun decodeJpeg(bytes: ByteArray, reusable: Bitmap?): Bitmap? {
+    private fun decodeJpegNewBitmap(bytes: ByteArray): Bitmap? {
         return try {
             val opts = BitmapFactory.Options().apply {
-                inPreferredConfig = Bitmap.Config.ARGB_8888
-                inMutable = true
-                if (reusable != null && !reusable.isRecycled) {
-                    inBitmap = reusable
-                }
+                inPreferredConfig = Bitmap.Config.RGB_565
             }
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
-        } catch (_: IllegalArgumentException) {
-            try {
-                val fallbackOpts = BitmapFactory.Options().apply {
-                    inPreferredConfig = Bitmap.Config.ARGB_8888
-                    inMutable = true
-                }
-                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, fallbackOpts)
-            } catch (_: Exception) {
-                null
-            }
         } catch (_: Exception) {
             null
         }

@@ -3,258 +3,275 @@ package com.playbax.app
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
 
 class MainActivityViews(
     val rootFrame: FrameLayout,
-    val multiScreenStage: PlayBaxMultiScreenStage,
-    val statusDot: View,
-    val statusText: TextView,
-    val lensQuickChip: TextView,
-    val layoutQuickChip: TextView,
-    val minimizedTripodPill: LinearLayout,
-    val minimizedPillText: TextView,
-    val bottomDock: LinearLayout,
-    val dragHandleContainer: LinearLayout,
-    val readoutBadge: TextView,
+    val homeSetupScroll: ScrollView,
+    val topModePill: TextView,
+    val delayRingGauge: DelayRingGaugeView,
+    val screensTile: PastelBentoTileRefs,
+    val layoutTile: PastelBentoTileRefs,
+    val captureTile: PastelBentoTileRefs,
+    val lensTile: PastelBentoTileRefs,
+    val cascadeTile: PastelBentoTileRefs,
     val minusBtn: TextView,
     val delaySlider: SeekBar,
     val plusBtn: TextView,
-    val screenSpinnerChip: TextView,
-    val recordSpinnerChip: TextView,
-    val grantCameraBtn: TextView,
-    val mainActionSection: LinearLayout,
-    val startDelayBtn: TextView,
-    val activeButtonsRow: LinearLayout,
-    val tripodViewBtn: TextView,
-    val resetBufferBtn: TextView,
-    val pauseDelayBtn: TextView
+    val presetButtons: List<Pair<Int, TextView>>,
+    val resetDefaultsBtn: TextView,
+    val applyLaunchBtn: TextView,
+    val cameraStageContainer: FrameLayout,
+    val multiScreenStage: PlayBaxMultiScreenStage,
+    val cameraTopBar: LinearLayout,
+    val backToHomeBtn: TextView,
+    val cameraStatusPill: TextView,
+    val cameraBottomBar: LinearLayout,
+    val freezeToggleBtn: TextView,
+    val recordActionBtn: TextView,
+    val fullscreenToggleBtn: TextView
 )
 
 object MainActivityUiBuilder {
 
     fun build(context: Context, stage: PlayBaxMultiScreenStage): MainActivityViews {
-        val root = FrameLayout(context).apply { setBackgroundColor(Color.parseColor("#0E1013")) }
-        root.addView(stage, FrameLayout.LayoutParams(-1, -1))
+        val root = FrameLayout(context).apply {
+            setBackgroundColor(Color.parseColor(GoogleStyleWidgets.LIGHT_BG))
+        }
 
-        // Top Floating Status & Camera/Layout Quick Chips
-        val topBar = LinearLayout(context).apply {
+        // =====================================================================
+        // 1. Branded Google Light UI Home Setup Screen (Fitbit / Play Store Style)
+        // =====================================================================
+        val homeScroll = ScrollView(context).apply {
+            isFillViewport = true
+            setBackgroundColor(Color.parseColor(GoogleStyleWidgets.LIGHT_BG))
+        }
+        val homeCol = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(context, 18), dp(context, 46), dp(context, 18), dp(context, 28))
+        }
+
+        // Top Bar: Brand Header + Soft Status Pill + Profile Badge
+        val topHeader = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(context, 14), dp(context, 44), dp(context, 14), dp(context, 10))
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 18) }
         }
-        val statusPill = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(context, 12), dp(context, 8), dp(context, 12), dp(context, 8))
-            background = pillDrawable("#D9131314")
-        }
-        val statusDot = View(context).apply {
-            layoutParams = LinearLayout.LayoutParams(dp(context, 8), dp(context, 8)).apply { rightMargin = dp(context, 7) }
-            background = pillDrawable(GoogleStyleWidgets.GOOGLE_GREEN)
-        }
-        val statusText = TextView(context).apply {
-            text = "PlayBax Ready"
-            setTextColor(Color.parseColor(GoogleStyleWidgets.M3_TEXT_PRIMARY))
+        val brandRow = GoogleStyleWidgets.createBrandHeaderRow(context)
+        val topModePill = TextView(context).apply {
+            text = "Memory Stream"
+            setTextColor(Color.parseColor(GoogleStyleWidgets.TEXT_DARK))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            setPadding(dp(context, 14), dp(context, 7), dp(context, 14), dp(context, 7))
+            background = GoogleStyleWidgets.roundedDrawable(context, GoogleStyleWidgets.LIGHT_SURFACE_PILL, 999)
         }
-        statusPill.addView(statusDot)
-        statusPill.addView(statusText)
-
-        val lensQuickChip = createTopQuickChip(context, "✓ 1.0x Rear ▾").apply {
-            layoutParams = LinearLayout.LayoutParams(-2, -2).apply { rightMargin = dp(context, 8) }
-        }
-        val layoutQuickChip = createTopQuickChip(context, "✓ Auto Layout ▾")
-
-        topBar.addView(statusPill)
-        topBar.addView(View(context).apply { layoutParams = LinearLayout.LayoutParams(0, 1, 1f) })
-        topBar.addView(lensQuickChip)
-        topBar.addView(layoutQuickChip)
-        root.addView(topBar, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
-
-        // Minimized Tripod Floating Pill (When 3-Row Control Sheet is Collapsed)
-        val minimizedTripodPill = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(context, 18), dp(context, 10), dp(context, 18), dp(context, 10))
-            background = GoogleStyleWidgets.roundedCardDrawable(context, "#E6131314", 999, "#40A8C7FA")
-            visibility = View.GONE
-        }
-        val minimizedPillText = TextView(context).apply {
-            text = "▲  PlayBax (+5s) • Tap to Show Controls"
-            setTextColor(Color.parseColor("#C2E7FF"))
+        val badgeCircle = TextView(context).apply {
+            text = "PB"
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-        }
-        minimizedTripodPill.addView(minimizedPillText)
-        val minLp = FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
-            bottomMargin = dp(context, 22)
-        }
-        root.addView(minimizedTripodPill, minLp)
-
-        // Ultra-Clean 3-Row Google Material 3 Dark Sheet (#131314)
-        val bottomDock = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(context, 20), dp(context, 8), dp(context, 20), dp(context, 24))
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                val r = dp(context, 28).toFloat()
-                cornerRadii = floatArrayOf(r, r, r, r, 0f, 0f, 0f, 0f)
-                setColor(Color.parseColor(GoogleStyleWidgets.M3_DARK_SHEET))
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = GoogleStyleWidgets.roundedDrawable(context, "#0B57D0", 999, "#26C6DA")
+            layoutParams = LinearLayout.LayoutParams(dp(context, 36), dp(context, 36)).apply {
+                leftMargin = dp(context, 10)
             }
         }
-        val dragHandleContainer = LinearLayout(context).apply {
+        topHeader.addView(brandRow)
+        topHeader.addView(View(context).apply { layoutParams = LinearLayout.LayoutParams(0, 1, 1f) })
+        topHeader.addView(topModePill)
+        topHeader.addView(badgeCircle)
+        homeCol.addView(topHeader)
+
+        // Hero Bento Row: Left Circular Delay Ring Gauge + Right 3 Pastel Tiles
+        val heroBentoRow = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 10) }
+        }
+        val delayRingGauge = DelayRingGaugeView(context).apply {
+            layoutParams = LinearLayout.LayoutParams(0, dp(context, 224), 0.94f).apply {
+                rightMargin = dp(context, 10)
+            }
+        }
+        val rightStack = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(0, dp(context, 4), 0, dp(context, 10))
-            layoutParams = LinearLayout.LayoutParams(-1, -2)
+            layoutParams = LinearLayout.LayoutParams(0, -2, 1.06f)
         }
-        dragHandleContainer.addView(View(context).apply {
-            layoutParams = LinearLayout.LayoutParams(dp(context, 48), dp(context, 5))
-            background = pillDrawable("#668E918F")
-        })
-        bottomDock.addView(dragHandleContainer)
+        val screensTile = GoogleStyleWidgets.createPastelBentoTile(
+            context, "#9CF2E6", "▣", "#00796B", "Playback screens", "1 Screen", "Tap to switch 1–3"
+        ) {}
+        val layoutTile = GoogleStyleWidgets.createPastelBentoTile(
+            context, "#E6EAEE", "⇅", "#1F1F1F", "Screen layout", "Auto Rotate", "Stacked / Side"
+        ) {}
+        val captureTile = GoogleStyleWidgets.createPastelBentoTile(
+            context, "#F3E8FF", "●", "#6A1B9A", "Capture mode", "Memory Only", "Unrecorded RAM"
+        ) {}
 
-        // Row 1: Minimalist Brand & Live Readout Header
-        val headerRow = LinearLayout(context).apply {
+        rightStack.addView(screensTile.card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 8) })
+        rightStack.addView(layoutTile.card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 8) })
+        rightStack.addView(captureTile.card, LinearLayout.LayoutParams(-1, -2))
+
+        heroBentoRow.addView(delayRingGauge)
+        heroBentoRow.addView(rightStack)
+        homeCol.addView(heroBentoRow)
+
+        // Second Bento Row: 2 Side-by-Side Pastel Cards (Camera Lens & Cascade Readout)
+        val secondBentoRow = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 14) }
+        }
+        val lensTile = GoogleStyleWidgets.createPastelBentoTile(
+            context, "#E6EAEE", "◎", "#0B57D0", "Camera lens", "1.0x Rear", "Tap to switch lens"
+        ) {}
+        val cascadeTile = GoogleStyleWidgets.createPastelBentoTile(
+            context, "#ADEFE4", "⏱", "#00695C", "Delay cascade", "+5s behind", "1–30s memory loop"
+        ) {}
+        secondBentoRow.addView(lensTile.card, weightLp(context, 1f, 8))
+        secondBentoRow.addView(cascadeTile.card, weightLp(context, 1f, 0))
+        homeCol.addView(secondBentoRow)
+
+        // Delay Slider & Quick Presets Card (#FFFFFF clean Google card)
+        val sliderSection = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(context, 16), dp(context, 14), dp(context, 16), dp(context, 14))
+            background = GoogleStyleWidgets.roundedDrawable(context, "#FFFFFF", 24, "#E0E6ED")
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 16) }
+        }
+        val sliderRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 12) }
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 10) }
         }
-        val brandWordmark = GoogleStyleWidgets.createBrandWordmarkRow(context, 26, 18f).apply {
-            layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
-        }
-        val readoutBadge = TextView(context).apply {
-            text = "5s Delay • Memory"
-            setTextColor(Color.parseColor(GoogleStyleWidgets.M3_ACCENT_LIGHT))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
-            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-            setPadding(dp(context, 12), dp(context, 6), dp(context, 12), dp(context, 6))
-            background = pillDrawable("#1D2A3B")
-        }
-        headerRow.addView(brandWordmark)
-        headerRow.addView(readoutBadge)
-        bottomDock.addView(headerRow)
-
-        // Row 2: [ − ] Thick Luminous Gradient Delay Slider (1s..30s) [ + ]
-        val sliderCard = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(context, 12), dp(context, 10), dp(context, 12), dp(context, 10))
-            background = GoogleStyleWidgets.roundedCardDrawable(context, GoogleStyleWidgets.M3_DARK_CARD, 20)
-            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 12) }
-        }
-        val minusBtn = GoogleStyleWidgets.createStepperButton(context, "−", sizeDp = 38) {}
+        val minusBtn = GoogleStyleWidgets.createLightStepperButton(context, "−") {}
         val delaySlider = SeekBar(context).apply {
             max = PlayBaxPreferences.MAX_DELAY_SECONDS - PlayBaxPreferences.MIN_DELAY_SECONDS
             layoutParams = LinearLayout.LayoutParams(0, -2, 1f).apply {
                 leftMargin = dp(context, 6); rightMargin = dp(context, 6)
             }
         }
-        GoogleStyleWidgets.styleThickGoogleSlider(context, delaySlider)
-        val plusBtn = GoogleStyleWidgets.createStepperButton(context, "+", sizeDp = 38) {}
-        sliderCard.addView(minusBtn)
-        sliderCard.addView(delaySlider)
-        sliderCard.addView(plusBtn)
-        bottomDock.addView(sliderCard)
+        GoogleStyleWidgets.styleLightGoogleSlider(context, delaySlider)
+        val plusBtn = GoogleStyleWidgets.createLightStepperButton(context, "+") {}
+        sliderRow.addView(minusBtn)
+        sliderRow.addView(delaySlider)
+        sliderRow.addView(plusBtn)
+        sliderSection.addView(sliderRow)
 
-        // Row 3: Two Tonal Dropdown Spinners (Screens Cascade & Recording Mode)
-        val spinnerRow = LinearLayout(context).apply {
+        val presetsRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 14) }
+            layoutParams = LinearLayout.LayoutParams(-1, -2)
         }
-        val screenSpinnerChip = GoogleStyleWidgets.createGoogleSpinnerChip(context, "1 Screen (+5s)") {}
-        val recordSpinnerChip = GoogleStyleWidgets.createGoogleSpinnerChip(context, "Memory Only") {}
-        spinnerRow.addView(screenSpinnerChip, weightLp(context, 1.15f, 10, heightDp = 40))
-        spinnerRow.addView(recordSpinnerChip, weightLp(context, 0.85f, 0, heightDp = 40))
-        bottomDock.addView(spinnerRow)
-
-        val grantCameraBtn = createGradientActionPill(context, "Allow Camera Access").apply {
-            visibility = View.GONE
+        val presetValues = listOf(3, 5, 10, 15, 30)
+        val presetButtons = presetValues.mapIndexed { idx, sec ->
+            val btn = TextView(context).apply {
+                text = "${sec}s"
+                gravity = Gravity.CENTER
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setPadding(0, dp(context, 8), 0, dp(context, 8))
+            }
+            val rightMargin = if (idx < presetValues.size - 1) 6 else 0
+            presetsRow.addView(btn, weightLp(context, 1f, rightMargin))
+            sec to btn
         }
-        bottomDock.addView(grantCameraBtn)
+        sliderSection.addView(presetsRow)
+        homeCol.addView(sliderSection)
 
-        val mainActionSection = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        val startDelayBtn = createGradientActionPill(context, "Start Live Delayed Playback")
-        val activeButtonsRow = LinearLayout(context).apply {
+        // Primary Action Row (Fitbit '+ Log' / 'Start' + 'Ask Coach' Blue Pill Style)
+        val actionRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
-            visibility = View.GONE
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(-1, -2)
         }
-        val tripodViewBtn = createGradientActionPill(context, "Tripod Fullscreen")
-        val resetBufferBtn = createSolidActionPill(context, "Reset", "#1E2A3A", "#A8C7FA")
-        val pauseDelayBtn = createSolidActionPill(context, "Pause", "#3B1F23", "#F2B8B5")
-        activeButtonsRow.addView(tripodViewBtn, weightLp(context, 1.35f, 8, heightDp = 48))
-        activeButtonsRow.addView(resetBufferBtn, weightLp(context, 0.65f, 8, heightDp = 48))
-        activeButtonsRow.addView(pauseDelayBtn, weightLp(context, 0.65f, 0, heightDp = 48))
+        val resetDefaultsBtn = createPillButton(context, "↺  Reset", GoogleStyleWidgets.SOFT_SKY_PILL, "#001D35", 52)
+        val applyLaunchBtn = createPillButton(context, "▶  Apply & Start Camera", GoogleStyleWidgets.GOOGLE_BLUE_PRIMARY, "#FFFFFF", 52)
+        actionRow.addView(resetDefaultsBtn, weightLp(context, 0.72f, 10, heightDp = 52))
+        actionRow.addView(applyLaunchBtn, weightLp(context, 1.58f, 0, heightDp = 52))
+        homeCol.addView(actionRow)
 
-        mainActionSection.addView(startDelayBtn)
-        mainActionSection.addView(activeButtonsRow)
-        bottomDock.addView(mainActionSection)
+        homeScroll.addView(homeCol)
+        root.addView(homeScroll, FrameLayout.LayoutParams(-1, -1))
 
-        root.addView(bottomDock, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM))
+        // =====================================================================
+        // 2. Active Camera & Multi-Screen Delayed Playback Display (In Action)
+        // =====================================================================
+        val cameraStageContainer = FrameLayout(context).apply {
+            visibility = View.GONE
+            setBackgroundColor(Color.parseColor("#111316"))
+        }
+        cameraStageContainer.addView(stage, FrameLayout.LayoutParams(-1, -1))
+
+        val cameraTopBar = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(context, 14), dp(context, 44), dp(context, 14), dp(context, 10))
+        }
+        val backToHomeBtn = createPillButton(context, "←  Home Settings", "#F2FFFFFF", "#1F1F1F", 40).apply {
+            setPadding(dp(context, 16), 0, dp(context, 16), 0)
+            layoutParams = LinearLayout.LayoutParams(-2, dp(context, 40))
+        }
+        val cameraStatusPill = TextView(context).apply {
+            text = "● LIVE +5s"
+            setTextColor(Color.parseColor("#1F1F1F"))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(dp(context, 14), dp(context, 9), dp(context, 14), dp(context, 9))
+            background = GoogleStyleWidgets.roundedDrawable(context, "#E6A8F5EC", 999)
+        }
+        cameraTopBar.addView(backToHomeBtn)
+        cameraTopBar.addView(View(context).apply { layoutParams = LinearLayout.LayoutParams(0, 1, 1f) })
+        cameraTopBar.addView(cameraStatusPill)
+        cameraStageContainer.addView(cameraTopBar, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
+
+        val cameraBottomBar = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(context, 14), dp(context, 10), dp(context, 14), dp(context, 10))
+            background = GoogleStyleWidgets.roundedDrawable(context, "#F2FFFFFF", 999, "#D3E3FD")
+        }
+        val freezeToggleBtn = createPillButton(context, "⏸ Freeze", "#E6EAEE", "#1F1F1F", 42)
+        val recordActionBtn = createPillButton(context, "● Record MP4", "#0B57D0", "#FFFFFF", 42)
+        val fullscreenToggleBtn = createPillButton(context, "⛶ Full", "#CBE6FF", "#001D35", 42)
+        cameraBottomBar.addView(freezeToggleBtn, weightLp(context, 0.9f, 8, heightDp = 42))
+        cameraBottomBar.addView(recordActionBtn, weightLp(context, 1.25f, 8, heightDp = 42))
+        cameraBottomBar.addView(fullscreenToggleBtn, weightLp(context, 0.75f, 0, heightDp = 42))
+
+        val bottomBarLp = FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply {
+            leftMargin = dp(context, 16); rightMargin = dp(context, 16); bottomMargin = dp(context, 22)
+        }
+        cameraStageContainer.addView(cameraBottomBar, bottomBarLp)
+        root.addView(cameraStageContainer, FrameLayout.LayoutParams(-1, -1))
 
         return MainActivityViews(
-            root, stage, statusDot, statusText, lensQuickChip, layoutQuickChip,
-            minimizedTripodPill, minimizedPillText, bottomDock, dragHandleContainer,
-            readoutBadge, minusBtn, delaySlider, plusBtn, screenSpinnerChip,
-            recordSpinnerChip, grantCameraBtn, mainActionSection, startDelayBtn,
-            activeButtonsRow, tripodViewBtn, resetBufferBtn, pauseDelayBtn
+            root, homeScroll, topModePill, delayRingGauge, screensTile, layoutTile,
+            captureTile, lensTile, cascadeTile, minusBtn, delaySlider, plusBtn,
+            presetButtons, resetDefaultsBtn, applyLaunchBtn, cameraStageContainer,
+            stage, cameraTopBar, backToHomeBtn, cameraStatusPill, cameraBottomBar,
+            freezeToggleBtn, recordActionBtn, fullscreenToggleBtn
         )
     }
 
-    private fun createTopQuickChip(context: Context, textLabel: String): TextView {
-        return TextView(context).apply {
-            text = textLabel
-            setTextColor(Color.parseColor("#C2E7FF"))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-            setPadding(dp(context, 12), dp(context, 8), dp(context, 12), dp(context, 8))
-            background = GoogleStyleWidgets.roundedCardDrawable(context, "#D9131314", 999, "#33A8C7FA")
-        }
-    }
-
-    fun pillDrawable(colorHex: String): GradientDrawable {
-        return GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            cornerRadius = 999f
-            setColor(Color.parseColor(colorHex))
-        }
-    }
-
-    private fun createGradientActionPill(context: Context, label: String): TextView {
-        return TextView(context).apply {
-            text = label
-            gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14.5f)
-            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-            background = GoogleStyleWidgets.gradientPillDrawable()
-            layoutParams = LinearLayout.LayoutParams(-1, dp(context, 48))
-        }
-    }
-
-    private fun createSolidActionPill(
+    private fun createPillButton(
         context: Context,
         label: String,
         bgHex: String,
         fgHex: String,
-        heightDp: Int = 48
+        heightDp: Int
     ): TextView {
         return TextView(context).apply {
             text = label
             gravity = Gravity.CENTER
             setTextColor(Color.parseColor(fgHex))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
-            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-            background = pillDrawable(bgHex)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f)
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = GoogleStyleWidgets.roundedDrawable(context, bgHex, 999)
             layoutParams = LinearLayout.LayoutParams(-1, dp(context, heightDp))
         }
     }

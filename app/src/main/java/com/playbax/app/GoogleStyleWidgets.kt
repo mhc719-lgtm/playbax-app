@@ -1,7 +1,12 @@
 package com.playbax.app
 
 import android.content.Context
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.LinearGradient
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Shader
 import android.graphics.Typeface
 import android.graphics.drawable.ClipDrawable
 import android.graphics.drawable.GradientDrawable
@@ -16,139 +21,225 @@ import android.widget.SeekBar
 import android.widget.TextView
 
 /**
- * Shared Google Material 3 Dark + Soft Luminous Gradient UI components for PlayBax.
+ * Circular Chrono-Delay Ring Gauge modeled after the Google Health / Fitbit Light UI ring gauge.
  */
+class DelayRingGaugeView(context: Context) : View(context) {
+
+    private var delaySec: Int = 5
+    private var screenCount: Int = 1
+    private val arcRect = RectF()
+
+    private val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#E3E8EF")
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+    }
+    private val activeArcPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+    }
+    private val topLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#444746")
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+    }
+    private val centerValuePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#1F1F1F")
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.create("sans-serif", Typeface.BOLD)
+    }
+    private val bottomSubPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#0B57D0")
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+    }
+
+    fun updateState(delaySeconds: Int, screens: Int) {
+        this.delaySec = delaySeconds.coerceIn(1, 30)
+        this.screenCount = screens.coerceIn(1, 3)
+        invalidate()
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val w = width.toFloat()
+        val h = height.toFloat()
+        if (w <= 0f || h <= 0f) return
+
+        val size = minOf(w, h)
+        val stroke = size * 0.14f
+        trackPaint.strokeWidth = stroke
+        activeArcPaint.strokeWidth = stroke
+
+        val pad = stroke * 0.85f
+        val cx = w * 0.5f
+        val cy = h * 0.5f
+        val radius = (size * 0.5f) - pad
+        arcRect.set(cx - radius, cy - radius, cx + radius, cy + radius)
+
+        activeArcPaint.shader = LinearGradient(
+            arcRect.left, arcRect.top, arcRect.right, arcRect.bottom,
+            intArrayOf(Color.parseColor("#00BFA5"), Color.parseColor("#26C6DA"), Color.parseColor("#4285F4")),
+            null, Shader.TileMode.CLAMP
+        )
+
+        canvas.drawOval(arcRect, trackPaint)
+        val sweep = (delaySec / 30f).coerceIn(0.08f, 1f) * 300f
+        canvas.drawArc(arcRect, 120f, sweep, false, activeArcPaint)
+
+        topLabelPaint.textSize = size * 0.082f
+        centerValuePaint.textSize = size * 0.24f
+        bottomSubPaint.textSize = size * 0.078f
+
+        canvas.drawText("Delay interval", cx, cy - radius * 0.36f, topLabelPaint)
+        canvas.drawText("${delaySec}s", cx, cy + centerValuePaint.textSize * 0.28f, centerValuePaint)
+
+        val cascade = when (screenCount) {
+            1 -> "+${delaySec}s"
+            2 -> "+${delaySec}s • +${delaySec * 2}s"
+            else -> "+${delaySec}s•+${delaySec * 2}s•+${delaySec * 3}s"
+        }
+        canvas.drawText(cascade, cx, cy + radius * 0.56f, bottomSubPaint)
+    }
+}
+
+class PastelBentoTileRefs(
+    val card: LinearLayout,
+    val valueText: TextView,
+    val subtitleText: TextView
+)
+
 object GoogleStyleWidgets {
 
-    const val M3_DARK_SHEET = "#F5131314"
-    const val M3_DARK_CARD = "#1E1F23"
-    const val M3_DARK_TRACK = "#2C3038"
-    const val M3_TONAL_BTN_BG = "#232F42"
-    const val M3_SPINNER_BG = "#1D2A3B"
-    const val M3_SPINNER_BORDER = "#33A8C7FA"
-    const val M3_ACCENT_LIGHT = "#A8C7FA"
-    const val M3_TEXT_PRIMARY = "#E3E3E3"
-    const val GOOGLE_GREEN = "#81C995"
-    const val GOOGLE_RED = "#F28B82"
-    const val GOOGLE_YELLOW = "#FDD663"
+    const val LIGHT_BG = "#F7F9FC"
+    const val LIGHT_SURFACE_PILL = "#E6EAEE"
+    const val TEXT_DARK = "#1F1F1F"
+    const val GOOGLE_BLUE_PRIMARY = "#0B57D0"
+    const val SOFT_SKY_PILL = "#CBE6FF"
 
-    fun createBrandWordmarkRow(
-        context: Context,
-        iconSizeDp: Int = 26,
-        titleSp: Float = 18f
-    ): LinearLayout {
+    fun createBrandHeaderRow(context: Context): LinearLayout {
         return LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             val logo = ImageView(context).apply {
                 setImageResource(R.drawable.ic_playbax_launcher)
-                layoutParams = LinearLayout.LayoutParams(dp(context, iconSizeDp), dp(context, iconSizeDp)).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(context, 30), dp(context, 30)).apply {
                     rightMargin = dp(context, 10)
                 }
             }
-            val brandTitle = TextView(context).apply {
+            val title = TextView(context).apply {
                 text = "PlayBax"
-                setTextColor(Color.parseColor(M3_TEXT_PRIMARY))
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, titleSp)
+                setTextColor(Color.parseColor(TEXT_DARK))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 21f)
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                letterSpacing = 0.01f
             }
             addView(logo)
-            addView(brandTitle)
+            addView(title)
         }
     }
 
-    fun styleThickGoogleSlider(context: Context, seekBar: SeekBar) {
+    fun createPastelBentoTile(
+        context: Context,
+        bgHex: String,
+        iconSymbol: String,
+        iconColorHex: String,
+        title: String,
+        initialValue: String,
+        initialSub: String,
+        onClick: (View) -> Unit
+    ): PastelBentoTileRefs {
+        val card = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(context, 10), dp(context, 10), dp(context, 14), dp(context, 10))
+            background = roundedDrawable(context, bgHex, 24)
+            setOnClickListener { onClick(this) }
+        }
+        val iconPill = TextView(context).apply {
+            text = iconSymbol
+            gravity = Gravity.CENTER
+            setTextColor(Color.parseColor(iconColorHex))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = roundedDrawable(context, "#FFFFFF", 999)
+            layoutParams = LinearLayout.LayoutParams(dp(context, 32), dp(context, 50)).apply { rightMargin = dp(context, 10) }
+        }
+        val textCol = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
+        }
+        val titleTv = TextView(context).apply {
+            text = title
+            setTextColor(Color.parseColor("#2D3134"))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        }
+        val valueTv = TextView(context).apply {
+            text = initialValue
+            setTextColor(Color.parseColor(TEXT_DARK))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16.5f)
+            typeface = Typeface.create("sans-serif", Typeface.BOLD)
+        }
+        val subTv = TextView(context).apply {
+            text = initialSub
+            setTextColor(Color.parseColor("#444746"))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+        }
+        textCol.addView(titleTv)
+        textCol.addView(valueTv)
+        textCol.addView(subTv)
+        card.addView(iconPill)
+        card.addView(textCol)
+        return PastelBentoTileRefs(card, valueTv, subTv)
+    }
+
+    fun styleLightGoogleSlider(context: Context, seekBar: SeekBar) {
         val trackHeight = dp(context, 12)
         val radius = dp(context, 999).toFloat()
-
         val bgTrack = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = radius
-            setColor(Color.parseColor(M3_DARK_TRACK))
+            setColor(Color.parseColor("#DCE3EC"))
             setSize(-1, trackHeight)
         }
-
         val activeProgressRect = GradientDrawable(
             GradientDrawable.Orientation.LEFT_RIGHT,
-            intArrayOf(
-                Color.parseColor("#1A73E8"),
-                Color.parseColor("#4285F4"),
-                Color.parseColor("#A8C7FA")
-            )
+            intArrayOf(Color.parseColor("#00BFA5"), Color.parseColor("#26C6DA"), Color.parseColor("#4285F4"))
         ).apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = radius
             setSize(-1, trackHeight)
         }
         val progressClip = ClipDrawable(activeProgressRect, Gravity.START, ClipDrawable.HORIZONTAL)
-
         val layerDrawable = LayerDrawable(arrayOf(bgTrack, progressClip)).apply {
             setId(0, android.R.id.background)
             setId(1, android.R.id.progress)
         }
-
         val thumbSize = dp(context, 24)
         val thumbDrawable = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
             setSize(thumbSize, thumbSize)
-            setColor(Color.parseColor(M3_ACCENT_LIGHT))
-            setStroke(dp(context, 3), Color.parseColor("#131314"))
+            setColor(Color.parseColor("#0B57D0"))
+            setStroke(dp(context, 3), Color.WHITE)
         }
-
         seekBar.progressDrawable = layerDrawable
         seekBar.thumb = thumbDrawable
         seekBar.splitTrack = false
         seekBar.setPadding(dp(context, 12), dp(context, 6), dp(context, 12), dp(context, 6))
     }
 
-    fun createStepperButton(
-        context: Context,
-        symbol: String,
-        sizeDp: Int = 38,
-        onClick: () -> Unit
-    ): TextView {
+    fun createLightStepperButton(context: Context, symbol: String, onClick: () -> Unit): TextView {
         return TextView(context).apply {
             text = symbol
             gravity = Gravity.CENTER
-            setTextColor(Color.parseColor(M3_ACCENT_LIGHT))
+            setTextColor(Color.parseColor("#0B57D0"))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(Color.parseColor(M3_TONAL_BTN_BG))
-            }
-            layoutParams = LinearLayout.LayoutParams(dp(context, sizeDp), dp(context, sizeDp))
+            background = roundedDrawable(context, "#D3E3FD", 999)
+            layoutParams = LinearLayout.LayoutParams(dp(context, 38), dp(context, 38))
             setOnClickListener { onClick() }
         }
     }
-
-    fun createGoogleSpinnerChip(
-        context: Context,
-        label: String,
-        heightDp: Int = 40,
-        textSp: Float = 12.5f,
-        onClick: (View) -> Unit
-    ): TextView {
-        return TextView(context).apply {
-            text = formatSpinnerText(label)
-            gravity = Gravity.CENTER
-            setPadding(dp(context, 10), 0, dp(context, 10), 0)
-            setTextColor(Color.parseColor("#C2E7FF"))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, textSp)
-            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp(context, 12).toFloat()
-                setColor(Color.parseColor(M3_SPINNER_BG))
-                setStroke(dp(context, 1), Color.parseColor(M3_SPINNER_BORDER))
-            }
-            layoutParams = LinearLayout.LayoutParams(0, dp(context, heightDp), 1f)
-            setOnClickListener { onClick(this) }
-        }
-    }
-
-    fun formatSpinnerText(label: String): String = "✓  $label  ▾"
 
     fun showGooglePopupMenu(
         context: Context,
@@ -169,42 +260,18 @@ object GoogleStyleWidgets {
             }
             popup.show()
         } catch (_: Exception) {
-            val next = (selectedIndex + 1) % options.size
-            onSelected(next)
+            onSelected((selectedIndex + 1) % options.size)
         }
     }
 
-    fun gradientPillDrawable(): GradientDrawable {
-        return GradientDrawable(
-            GradientDrawable.Orientation.LEFT_RIGHT,
-            intArrayOf(
-                Color.parseColor("#1A73E8"),
-                Color.parseColor("#4285F4"),
-                Color.parseColor("#669DF6")
-            )
-        ).apply {
-            shape = GradientDrawable.RECTANGLE
-            cornerRadius = 999f
-        }
-    }
-
-    fun roundedCardDrawable(
-        context: Context,
-        bgHex: String,
-        radiusDp: Int = 20,
-        strokeHex: String? = null
-    ): GradientDrawable {
+    fun roundedDrawable(context: Context, bgHex: String, radiusDp: Int, strokeHex: String? = null): GradientDrawable {
         return GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = dp(context, radiusDp).toFloat()
             setColor(Color.parseColor(bgHex))
-            if (strokeHex != null) {
-                setStroke(dp(context, 1), Color.parseColor(strokeHex))
-            }
+            if (strokeHex != null) setStroke(dp(context, 1), Color.parseColor(strokeHex))
         }
     }
 
-    fun dp(context: Context, value: Int): Int {
-        return (value * context.resources.displayMetrics.density).toInt()
-    }
+    fun dp(context: Context, value: Int): Int = (value * context.resources.displayMetrics.density).toInt()
 }
