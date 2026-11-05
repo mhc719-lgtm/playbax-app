@@ -1,0 +1,264 @@
+package com.playbax.app
+
+import android.app.AlertDialog
+import android.content.ContentUris
+import android.content.Context
+import android.content.Intent
+import android.graphics.Color
+import android.graphics.Typeface
+import android.net.Uri
+import android.provider.MediaStore
+import android.provider.Settings
+import android.text.format.DateFormat
+import android.util.TypedValue
+import android.view.Gravity
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.widget.Toast
+import java.util.Date
+
+class SavedClipItem(
+    val id: Long,
+    val uri: Uri,
+    val displayName: String,
+    val sizeBytes: Long,
+    val dateAddedSec: Long
+)
+
+/**
+ * Helper managing the in-app Saved Clips library (MediaStore Movies/PlayBax query, watch, share, delete),
+ * the Google Play Store Guide & Privacy sheet, and the Camera Permission Settings sheet.
+ */
+object PlayBaxClipsHelper {
+
+    fun querySavedClips(context: Context): List<SavedClipItem> {
+        val list = ArrayList<SavedClipItem>()
+        try {
+            val projection = arrayOf(
+                MediaStore.Video.Media._ID,
+                MediaStore.Video.Media.DISPLAY_NAME,
+                MediaStore.Video.Media.SIZE,
+                MediaStore.Video.Media.DATE_ADDED
+            )
+            val selection = "${MediaStore.Video.Media.DISPLAY_NAME} LIKE ?"
+            val selectionArgs = arrayOf("PlayBax_%")
+            val sortOrder = "${MediaStore.Video.Media.DATE_ADDED} DESC"
+
+            context.contentResolver.query(
+                MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                sortOrder
+            )?.use { cursor ->
+                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
+                val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
+                val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
+                val dateCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_ADDED)
+                while (cursor.moveToNext() && list.size < 30) {
+                    val id = cursor.getLong(idCol)
+                    val name = cursor.getString(nameCol) ?: "PlayBax_Clip.mp4"
+                    val size = cursor.getLong(sizeCol)
+                    val dateSec = cursor.getLong(dateCol)
+                    val uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id)
+                    list.add(SavedClipItem(id, uri, name, size, dateSec))
+                }
+            }
+        } catch (_: Exception) {
+        }
+        return list
+    }
+
+    fun populateClipsContainer(
+        context: Context,
+        container: LinearLayout,
+        onStartCameraClick: () -> Unit
+    ) {
+        container.removeAllViews()
+        val clips = querySavedClips(context)
+
+        val headerTv = TextView(context).apply {
+            text = "Saved PlayBax Clips (${clips.size})"
+            setTextColor(Color.parseColor(GoogleStyleWidgets.TEXT_DARK))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 4) }
+        }
+        val subTv = TextView(context).apply {
+            text = "Multi-screen MP4 sessions recorded via ● Rec in Movies/PlayBax"
+            setTextColor(Color.parseColor(GoogleStyleWidgets.TEXT_MUTED))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 14) }
+        }
+        container.addView(headerTv)
+        container.addView(subTv)
+
+        if (clips.isEmpty()) {
+            val emptyCard = LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                setPadding(dp(context, 24), dp(context, 32), dp(context, 24), dp(context, 32))
+                background = GoogleStyleWidgets.roundedDrawable(context, "#FFFFFF", 24, "#F2E1DA")
+            }
+            val badge = TextView(context).apply {
+                text = "🎬"
+                gravity = Gravity.CENTER
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f)
+                background = GoogleStyleWidgets.roundedDrawable(context, GoogleStyleWidgets.SOFT_PEACH_PILL, 999)
+                layoutParams = LinearLayout.LayoutParams(dp(context, 56), dp(context, 56)).apply {
+                    bottomMargin = dp(context, 12)
+                }
+            }
+            val emptyTitle = TextView(context).apply {
+                text = "No saved recordings yet"
+                gravity = Gravity.CENTER
+                setTextColor(Color.parseColor(GoogleStyleWidgets.TEXT_DARK))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            }
+            val emptyDesc = TextView(context).apply {
+                text = "PlayBax streams in unrecorded RAM by default. Tap ● Rec on the live playback screen whenever you want to save a 1, 2, or 3-screen MP4 clip."
+                gravity = Gravity.CENTER
+                setTextColor(Color.parseColor(GoogleStyleWidgets.TEXT_MUTED))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                setPadding(0, dp(context, 6), 0, dp(context, 16))
+            }
+            val launchBtn = TextView(context).apply {
+                text = "▶  Open Live Playback"
+                gravity = Gravity.CENTER
+                setTextColor(Color.WHITE)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f)
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setPadding(dp(context, 22), dp(context, 12), dp(context, 22), dp(context, 12))
+                background = GoogleStyleWidgets.roundedDrawable(context, GoogleStyleWidgets.BRAND_ORANGE_PRIMARY, 999)
+                setOnClickListener { onStartCameraClick() }
+            }
+            emptyCard.addView(badge)
+            emptyCard.addView(emptyTitle)
+            emptyCard.addView(emptyDesc)
+            emptyCard.addView(launchBtn)
+            container.addView(emptyCard)
+            return
+        }
+
+        clips.forEach { clip ->
+            val row = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(context, 14), dp(context, 12), dp(context, 12), dp(context, 12))
+                background = GoogleStyleWidgets.roundedDrawable(context, "#FFFFFF", 20, "#F2E1DA")
+                layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 10) }
+            }
+            val textCol = LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
+            }
+            val title = TextView(context).apply {
+                text = clip.displayName
+                setTextColor(Color.parseColor(GoogleStyleWidgets.TEXT_DARK))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            }
+            val mb = String.format("%.1f MB", clip.sizeBytes / (1024f * 1024f))
+            val dateStr = DateFormat.format("MMM d, h:mm a", Date(clip.dateAddedSec * 1000L)).toString()
+            val meta = TextView(context).apply {
+                text = "$dateStr • $mb"
+                setTextColor(Color.parseColor(GoogleStyleWidgets.TEXT_MUTED))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            }
+            textCol.addView(title)
+            textCol.addView(meta)
+
+            val playBtn = createClipActionBtn(context, "▶ Watch", GoogleStyleWidgets.BRAND_ORANGE_PRIMARY, "#FFFFFF") {
+                try {
+                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                        setDataAndType(clip.uri, "video/mp4")
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(intent)
+                } catch (_: Exception) {
+                    Toast.makeText(context, "Unable to open video player", Toast.LENGTH_SHORT).show()
+                }
+            }
+            val shareBtn = createClipActionBtn(context, "↗", GoogleStyleWidgets.SOFT_PEACH_PILL, "#BF360C") {
+                try {
+                    val share = Intent(Intent.ACTION_SEND).apply {
+                        type = "video/mp4"
+                        putExtra(Intent.EXTRA_STREAM, clip.uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(Intent.createChooser(share, "Share PlayBax Clip"))
+                } catch (_: Exception) {}
+            }
+            val delBtn = createClipActionBtn(context, "✕", "#F5EBE7", "#6E5850") {
+                try {
+                    context.contentResolver.delete(clip.uri, null, null)
+                    populateClipsContainer(context, container, onStartCameraClick)
+                } catch (_: Exception) {}
+            }
+
+            row.addView(textCol)
+            row.addView(playBtn)
+            row.addView(shareBtn)
+            row.addView(delBtn)
+            container.addView(row)
+        }
+    }
+
+    private fun createClipActionBtn(context: Context, label: String, bgHex: String, fgHex: String, onClick: () -> Unit): TextView {
+        return TextView(context).apply {
+            text = label
+            gravity = Gravity.CENTER
+            setTextColor(Color.parseColor(fgHex))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(dp(context, 12), dp(context, 8), dp(context, 12), dp(context, 8))
+            background = GoogleStyleWidgets.roundedDrawable(context, bgHex, 999)
+            layoutParams = LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(context, 6) }
+            setOnClickListener { onClick() }
+        }
+    }
+
+    fun showGuideAndPrivacyDialog(context: Context) {
+        val message = """
+            PlayBax v1.0.5 • Live Delayed Video Coach
+            
+            1. Tripod Delayed Playback (1s–30s):
+            Select 1, 2, or 3 cascading screens (+1×D, +2×D, +3×D) and tap Apply & Start Camera. Perform your shot or drill and watch your form immediately at your chosen delay.
+            
+            2. Native Camera Hardware & Gestures:
+            • 1080p 16:9 Full-HD with Optical & Electronic Anti-Shake (OIS + EIS)
+            • Continuous Video Autofocus & 30fps Indoor Lock
+            • Pinch-to-Zoom & Tap-to-Focus directly on the live playback stage
+            
+            3. Privacy & Data Safety Disclosure:
+            • Memory-Only Default: Frames are held strictly in volatile device RAM and automatically pruned.
+            • On-Demand MP4 Recording: Video is saved to Movies/PlayBax ONLY when you explicitly tap ● Rec during playback. Zero data is transmitted off-device.
+        """.trimIndent()
+
+        AlertDialog.Builder(context)
+            .setTitle("PlayBax Guide & Privacy")
+            .setMessage(message)
+            .setPositiveButton("Got It", null)
+            .show()
+    }
+
+    fun showPermissionRationaleDialog(context: Context) {
+        AlertDialog.Builder(context)
+            .setTitle("Camera Access Required")
+            .setMessage("PlayBax requires Camera permission to stream live delayed playback on your screen. All video stays 100% on your device.")
+            .setPositiveButton("Open App Settings") { _, _ ->
+                try {
+                    val intent = Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:${context.packageName}")
+                    )
+                    context.startActivity(intent)
+                } catch (_: Exception) {}
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun dp(context: Context, value: Int): Int = GoogleStyleWidgets.dp(context, value)
+}

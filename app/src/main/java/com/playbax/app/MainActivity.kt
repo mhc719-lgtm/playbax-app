@@ -11,6 +11,7 @@ import android.content.res.Configuration
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
+import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.WindowManager
 import android.widget.SeekBar
@@ -27,17 +28,22 @@ class MainActivity : AppCompatActivity() {
     private lateinit var cameraEngine: PlayBaxCameraEngine
 
     private var isInCameraStage = false
+    private var isShowingClipsTab = false
     private var isVideoRecordingNow = false
     private var pendingLaunchAfterPermission = false
     private var lastAppliedScreenCount = -1
     private var lastAppliedSideBySide = false
 
     private val permissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { _ ->
-        if (hasCameraPermission() && pendingLaunchAfterPermission) {
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted && pendingLaunchAfterPermission) {
             pendingLaunchAfterPermission = false
             enterCameraStage()
+        } else if (!granted) {
+            pendingLaunchAfterPermission = false
+            PlayBaxClipsHelper.showPermissionRationaleDialog(this)
+            syncUiState()
         } else syncUiState()
     }
 
@@ -61,9 +67,7 @@ class MainActivity : AppCompatActivity() {
             ringBuffer = ringBuffer,
             onFramesDecoded = { results, _ ->
                 if (!isInCameraStage) return@PlayBaxCameraEngine
-                for (i in results.indices) {
-                    ui.multiScreenStage.panels[i].updateFrameState(results[i].bitmap)
-                }
+                for (i in results.indices) ui.multiScreenStage.panels[i].updateFrameState(results[i].bitmap)
             },
             onOrientationChangedCallback = {
                 if (isInCameraStage) {
@@ -75,10 +79,16 @@ class MainActivity : AppCompatActivity() {
             onRecordingStateChanged = { recording -> isVideoRecordingNow = recording; syncUiState() }
         )
 
+        stage.onPinchZoomDelta = { factor -> cameraEngine.handlePinchZoom(factor) }
+        stage.onTapToFocusPoint = { x, y, _, _ -> cameraEngine.handleTapToFocus(x, y) }
+
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (isInCameraStage) returnToHomeSettings()
-                else { isEnabled = false; onBackPressedDispatcher.onBackPressed() }
+                when {
+                    isInCameraStage -> returnToHomeSettings()
+                    isShowingClipsTab -> { isShowingClipsTab = false; syncUiState() }
+                    else -> { isEnabled = false; onBackPressedDispatcher.onBackPressed() }
+                }
             }
         })
         wireHomeControls()
@@ -88,40 +98,37 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun wireHomeControls() {
+        ui.badgeCircle.setOnClickListener { PlayBaxClipsHelper.showGuideAndPrivacyDialog(this) }
+        ui.topModePill.setOnClickListener { PlayBaxClipsHelper.showGuideAndPrivacyDialog(this) }
+        ui.navSetupTab.setOnClickListener { isShowingClipsTab = false; syncUiState() }
+        ui.navClipsTab.setOnClickListener {
+            isShowingClipsTab = true
+            PlayBaxClipsHelper.populateClipsContainer(this, ui.clipsBodyCol) { isShowingClipsTab = false; triggerStartCamera() }
+            syncUiState()
+        }
+        ui.navGuideTab.setOnClickListener { PlayBaxClipsHelper.showGuideAndPrivacyDialog(this) }
+
         ui.screensTile.card.setOnClickListener { anchor ->
             val d = PlayBaxPreferences.getDelaySeconds(this)
             val idx = (PlayBaxPreferences.getScreenCount(this) - 1).coerceIn(0, 2)
-            GoogleStyleWidgets.showGooglePopupMenu(this, anchor, PlayBaxPreferences.getScreenMenuOptions(d), idx) {
-                PlayBaxPreferences.setScreenCount(this, it + 1)
-            }
+            GoogleStyleWidgets.showGooglePopupMenu(this, anchor, PlayBaxPreferences.getScreenMenuOptions(d), idx) { PlayBaxPreferences.setScreenCount(this, it + 1) }
         }
         ui.layoutTile.card.setOnClickListener { anchor ->
             val idx = PlayBaxPreferences.getLayoutMode(this)
-            GoogleStyleWidgets.showGooglePopupMenu(this, anchor, PlayBaxPreferences.getLayoutMenuOptions(), idx) {
-                PlayBaxPreferences.setLayoutMode(this, it)
-            }
+            GoogleStyleWidgets.showGooglePopupMenu(this, anchor, PlayBaxPreferences.getLayoutMenuOptions(), idx) { PlayBaxPreferences.setLayoutMode(this, it) }
         }
         ui.captureTile.card.setOnClickListener { anchor ->
             val idx = if (PlayBaxPreferences.isRecordEnabled(this)) 1 else 0
-            GoogleStyleWidgets.showGooglePopupMenu(this, anchor, PlayBaxPreferences.getRecordMenuOptions(), idx) {
-                PlayBaxPreferences.setRecordEnabled(this, it == 1)
-            }
+            GoogleStyleWidgets.showGooglePopupMenu(this, anchor, PlayBaxPreferences.getRecordMenuOptions(), idx) { PlayBaxPreferences.setRecordEnabled(this, it == 1) }
         }
         ui.lensTile.card.setOnClickListener { anchor ->
             val idx = PlayBaxPreferences.getLensMode(this)
-            GoogleStyleWidgets.showGooglePopupMenu(this, anchor, PlayBaxPreferences.getLensMenuOptions(), idx) {
-                PlayBaxPreferences.setLensMode(this, it)
-            }
+            GoogleStyleWidgets.showGooglePopupMenu(this, anchor, PlayBaxPreferences.getLensMenuOptions(), idx) { PlayBaxPreferences.setLensMode(this, it) }
         }
-        ui.cascadeTile.card.setOnClickListener {
-            PlayBaxPreferences.setScreenCount(this, (PlayBaxPreferences.getScreenCount(this) % 3) + 1)
-        }
-        ui.minusBtn.setOnClickListener {
-            PlayBaxPreferences.setDelaySeconds(this, PlayBaxPreferences.getDelaySeconds(this) - 1)
-        }
-        ui.plusBtn.setOnClickListener {
-            PlayBaxPreferences.setDelaySeconds(this, PlayBaxPreferences.getDelaySeconds(this) + 1)
-        }
+        ui.cascadeTile.card.setOnClickListener { PlayBaxPreferences.setScreenCount(this, (PlayBaxPreferences.getScreenCount(this) % 3) + 1) }
+        ui.minusBtn.setOnClickListener { PlayBaxPreferences.setDelaySeconds(this, PlayBaxPreferences.getDelaySeconds(this) - 1) }
+        ui.plusBtn.setOnClickListener { PlayBaxPreferences.setDelaySeconds(this, PlayBaxPreferences.getDelaySeconds(this) + 1) }
+
         ui.delaySlider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) PlayBaxPreferences.setDelaySeconds(this@MainActivity, progress + PlayBaxPreferences.MIN_DELAY_SECONDS)
@@ -130,7 +137,10 @@ class MainActivity : AppCompatActivity() {
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
         ui.presetButtons.forEach { (sec, btn) ->
-            btn.setOnClickListener { PlayBaxPreferences.setDelaySeconds(this, sec) }
+            btn.setOnClickListener {
+                try { btn.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK) } catch (_: Exception) {}
+                PlayBaxPreferences.setDelaySeconds(this, sec)
+            }
         }
         ui.resetDefaultsBtn.setOnClickListener {
             PlayBaxPreferences.setDelaySeconds(this, 5)
@@ -140,23 +150,21 @@ class MainActivity : AppCompatActivity() {
             PlayBaxPreferences.setLensMode(this, PlayBaxPreferences.LENS_REAR_WIDE)
             Toast.makeText(this, "Reset to default settings", Toast.LENGTH_SHORT).show()
         }
-        ui.applyLaunchBtn.setOnClickListener {
-            if (!hasCameraPermission()) {
-                pendingLaunchAfterPermission = true
-                permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO))
-            } else {
-                enterCameraStage()
-            }
-        }
+        ui.applyLaunchBtn.setOnClickListener { triggerStartCamera() }
+    }
+
+    private fun triggerStartCamera() {
+        if (!hasCameraPermission()) {
+            pendingLaunchAfterPermission = true
+            permissionLauncher.launch(Manifest.permission.CAMERA)
+        } else enterCameraStage()
     }
 
     private fun wireCameraControls() {
         ui.recordActionBtn.setOnClickListener {
-            if (isVideoRecordingNow) {
-                cameraEngine.stopRecordingIfActive(silent = false)
-            } else {
-                cameraEngine.startRecordingIfNeeded()
-            }
+            try { it.performHapticFeedback(HapticFeedbackConstants.CONFIRM) } catch (_: Exception) {}
+            if (isVideoRecordingNow) cameraEngine.stopRecordingIfActive(silent = false)
+            else cameraEngine.startRecordingIfNeeded()
             syncUiState()
         }
         ui.freezeToggleBtn.setOnClickListener {
@@ -185,6 +193,7 @@ class MainActivity : AppCompatActivity() {
         ringBuffer.clear()
         ui.multiScreenStage.clearPanelBitmaps()
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        if (isShowingClipsTab) PlayBaxClipsHelper.populateClipsContainer(this, ui.clipsBodyCol) { triggerStartCamera() }
         syncUiState()
     }
 
@@ -219,9 +228,18 @@ class MainActivity : AppCompatActivity() {
 
         ui.presetButtons.forEach { (sec, btn) ->
             val sel = (sec == delaySec)
-            btn.background = GoogleStyleWidgets.roundedDrawable(this, if (sel) "#0B57D0" else "#E6EAEE", 999)
-            btn.setTextColor(Color.parseColor(if (sel) "#FFFFFF" else "#1F1F1F"))
+            btn.background = GoogleStyleWidgets.roundedDrawable(this, if (sel) GoogleStyleWidgets.BRAND_ORANGE_PRIMARY else "#F5EBE7", 999)
+            btn.setTextColor(Color.parseColor(if (sel) "#FFFFFF" else GoogleStyleWidgets.TEXT_DARK))
         }
+
+        ui.setupBodyCol.visibility = if (isShowingClipsTab) View.GONE else View.VISIBLE
+        ui.clipsBodyCol.visibility = if (isShowingClipsTab) View.VISIBLE else View.GONE
+        ui.navSetupTab.background = GoogleStyleWidgets.roundedDrawable(this, if (!isShowingClipsTab) GoogleStyleWidgets.SOFT_PEACH_PILL else "#FFFFFF", 999)
+        ui.navSetupTab.setTextColor(Color.parseColor(if (!isShowingClipsTab) "#BF360C" else GoogleStyleWidgets.TEXT_MUTED))
+        ui.navClipsTab.background = GoogleStyleWidgets.roundedDrawable(this, if (isShowingClipsTab) GoogleStyleWidgets.SOFT_PEACH_PILL else "#FFFFFF", 999)
+        ui.navClipsTab.setTextColor(Color.parseColor(if (isShowingClipsTab) "#BF360C" else GoogleStyleWidgets.TEXT_MUTED))
+        ui.navGuideTab.background = GoogleStyleWidgets.roundedDrawable(this, "#FFFFFF", 999)
+        ui.navGuideTab.setTextColor(Color.parseColor(GoogleStyleWidgets.TEXT_MUTED))
 
         val sideBySide = when (layoutMode) {
             PlayBaxPreferences.LAYOUT_PORTRAIT_STACKED -> false
@@ -234,13 +252,13 @@ class MainActivity : AppCompatActivity() {
             lastAppliedSideBySide = sideBySide
         }
 
-        ui.homeSetupScroll.visibility = if (isInCameraStage) View.GONE else View.VISIBLE
+        ui.homeContainer.visibility = if (isInCameraStage) View.GONE else View.VISIBLE
         ui.cameraStageContainer.visibility = if (isInCameraStage) View.VISIBLE else View.GONE
 
         if (isInCameraStage) {
             ui.freezeToggleBtn.text = if (cameraEngine.isFrozen) "▶ Play" else "⏸ Pause"
             ui.recordActionBtn.text = if (isVideoRecordingNow) "● Rec On" else "● Rec"
-            ui.recordActionBtn.setTextColor(Color.parseColor(if (isVideoRecordingNow) "#FF8A80" else "#FFFFFF"))
+            ui.recordActionBtn.setTextColor(Color.parseColor(if (isVideoRecordingNow) "#FF7043" else "#FFFFFF"))
         }
     }
 
@@ -248,10 +266,7 @@ class MainActivity : AppCompatActivity() {
         super.onConfigurationChanged(newConfig)
         if (::cameraEngine.isInitialized) {
             cameraEngine.onDisplayRotationChanged()
-            ui.rootFrame.postDelayed({
-                cameraEngine.onDisplayRotationChanged()
-                syncUiState()
-            }, 120L)
+            ui.rootFrame.postDelayed({ cameraEngine.onDisplayRotationChanged(); syncUiState() }, 120L)
         }
         syncUiState()
     }
@@ -259,9 +274,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         syncUiState()
-        if (isInCameraStage && hasCameraPermission() && !cameraEngine.isStageRunning) {
-            cameraEngine.startCameraSession()
-        }
+        if (isInCameraStage && hasCameraPermission() && !cameraEngine.isStageRunning) cameraEngine.startCameraSession()
     }
 
     override fun onPause() {
@@ -280,10 +293,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun registerPrefsReceiver() {
         val filter = IntentFilter(PlayBaxPreferences.ACTION_PREFS_CHANGED)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(prefsReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(prefsReceiver, filter)
-        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) registerReceiver(prefsReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        else registerReceiver(prefsReceiver, filter)
     }
 }

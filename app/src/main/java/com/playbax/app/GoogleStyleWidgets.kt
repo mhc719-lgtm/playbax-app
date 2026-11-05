@@ -13,6 +13,7 @@ import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
 import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -21,7 +22,7 @@ import android.widget.SeekBar
 import android.widget.TextView
 
 /**
- * Circular Chrono-Delay Ring Gauge modeled after the Google Health / Fitbit Light UI ring gauge.
+ * Circular Chrono-Delay Ring Gauge in PlayBax Warm Orange-Red Google Light UI palette.
  */
 class DelayRingGaugeView(context: Context) : View(context) {
 
@@ -30,7 +31,7 @@ class DelayRingGaugeView(context: Context) : View(context) {
     private val arcRect = RectF()
 
     private val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#E3E8EF")
+        color = Color.parseColor("#F2E1DA")
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
     }
@@ -39,17 +40,17 @@ class DelayRingGaugeView(context: Context) : View(context) {
         strokeCap = Paint.Cap.ROUND
     }
     private val topLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#444746")
+        color = Color.parseColor("#6E5850")
         textAlign = Paint.Align.CENTER
         typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
     }
     private val centerValuePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#1F1F1F")
+        color = Color.parseColor("#241915")
         textAlign = Paint.Align.CENTER
         typeface = Typeface.create("sans-serif", Typeface.BOLD)
     }
     private val bottomSubPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#0B57D0")
+        color = Color.parseColor("#D84315")
         textAlign = Paint.Align.CENTER
         typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
     }
@@ -79,7 +80,7 @@ class DelayRingGaugeView(context: Context) : View(context) {
 
         activeArcPaint.shader = LinearGradient(
             arcRect.left, arcRect.top, arcRect.right, arcRect.bottom,
-            intArrayOf(Color.parseColor("#00BFA5"), Color.parseColor("#26C6DA"), Color.parseColor("#4285F4")),
+            intArrayOf(Color.parseColor("#B71C1C"), Color.parseColor("#E64A19"), Color.parseColor("#FF7043")),
             null, Shader.TileMode.CLAMP
         )
 
@@ -111,11 +112,13 @@ class PastelBentoTileRefs(
 
 object GoogleStyleWidgets {
 
-    const val LIGHT_BG = "#F7F9FC"
-    const val LIGHT_SURFACE_PILL = "#E6EAEE"
-    const val TEXT_DARK = "#1F1F1F"
-    const val GOOGLE_BLUE_PRIMARY = "#0B57D0"
-    const val SOFT_SKY_PILL = "#CBE6FF"
+    const val LIGHT_BG = "#FFF9F7"
+    const val LIGHT_SURFACE_PILL = "#F7EBE6"
+    const val TEXT_DARK = "#241915"
+    const val TEXT_MUTED = "#6E5850"
+    const val BRAND_ORANGE_PRIMARY = "#D84315"
+    const val BRAND_CRIMSON = "#B71C1C"
+    const val SOFT_PEACH_PILL = "#FFDAD0"
 
     fun createBrandHeaderRow(context: Context): LinearLayout {
         return LinearLayout(context).apply {
@@ -153,7 +156,10 @@ object GoogleStyleWidgets {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(context, 10), dp(context, 10), dp(context, 14), dp(context, 10))
             background = roundedDrawable(context, bgHex, 24)
-            setOnClickListener { onClick(this) }
+            setOnClickListener {
+                try { performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK) } catch (_: Exception) {}
+                onClick(this)
+            }
         }
         val iconPill = TextView(context).apply {
             text = iconSymbol
@@ -170,7 +176,7 @@ object GoogleStyleWidgets {
         }
         val titleTv = TextView(context).apply {
             text = title
-            setTextColor(Color.parseColor("#2D3134"))
+            setTextColor(Color.parseColor("#5D4037"))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         }
@@ -182,7 +188,7 @@ object GoogleStyleWidgets {
         }
         val subTv = TextView(context).apply {
             text = initialSub
-            setTextColor(Color.parseColor("#444746"))
+            setTextColor(Color.parseColor(TEXT_MUTED))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
         }
         textCol.addView(titleTv)
@@ -199,12 +205,12 @@ object GoogleStyleWidgets {
         val bgTrack = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = radius
-            setColor(Color.parseColor("#DCE3EC"))
+            setColor(Color.parseColor("#F2E1DA"))
             setSize(-1, trackHeight)
         }
         val activeProgressRect = GradientDrawable(
             GradientDrawable.Orientation.LEFT_RIGHT,
-            intArrayOf(Color.parseColor("#00BFA5"), Color.parseColor("#26C6DA"), Color.parseColor("#4285F4"))
+            intArrayOf(Color.parseColor("#B71C1C"), Color.parseColor("#E64A19"), Color.parseColor("#FF7043"))
         ).apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = radius
@@ -219,7 +225,7 @@ object GoogleStyleWidgets {
         val thumbDrawable = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
             setSize(thumbSize, thumbSize)
-            setColor(Color.parseColor("#0B57D0"))
+            setColor(Color.parseColor(BRAND_ORANGE_PRIMARY))
             setStroke(dp(context, 3), Color.WHITE)
         }
         seekBar.progressDrawable = layerDrawable
@@ -232,12 +238,15 @@ object GoogleStyleWidgets {
         return TextView(context).apply {
             text = symbol
             gravity = Gravity.CENTER
-            setTextColor(Color.parseColor("#0B57D0"))
+            setTextColor(Color.parseColor("#BF360C"))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            background = roundedDrawable(context, "#D3E3FD", 999)
+            background = roundedDrawable(context, SOFT_PEACH_PILL, 999)
             layoutParams = LinearLayout.LayoutParams(dp(context, 38), dp(context, 38))
-            setOnClickListener { onClick() }
+            setOnClickListener {
+                try { performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK) } catch (_: Exception) {}
+                onClick()
+            }
         }
     }
 

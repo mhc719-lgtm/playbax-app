@@ -165,4 +165,25 @@ object CameraLensHelper {
             .filter { it.upper == 30 }
             .maxByOrNull { it.lower }
     }
+
+    fun applyPinchZoom(camera: Camera?, scaleFactor: Float) {
+        if (camera == null) return
+        try {
+            val state = camera.cameraInfo.zoomState.value ?: return
+            val next = (state.zoomRatio * scaleFactor).coerceIn(state.minZoomRatio, state.maxZoomRatio.coerceAtMost(6.0f))
+            camera.cameraControl.setZoomRatio(next)
+        } catch (_: Exception) {}
+    }
+
+    fun applyTapToFocus(camera: Camera?, previewView: androidx.camera.view.PreviewView, x: Float, y: Float) {
+        if (camera == null) return
+        try {
+            val point = previewView.meteringPointFactory.createPoint(x, y)
+            val action = androidx.camera.core.FocusMeteringAction.Builder(
+                point,
+                androidx.camera.core.FocusMeteringAction.FLAG_AF or androidx.camera.core.FocusMeteringAction.FLAG_AE
+            ).setAutoCancelDuration(4, java.util.concurrent.TimeUnit.SECONDS).build()
+            camera.cameraControl.startFocusAndMetering(action)
+        } catch (_: Exception) {}
+    }
 }

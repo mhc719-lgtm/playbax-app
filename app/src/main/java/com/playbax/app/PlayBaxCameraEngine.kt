@@ -250,6 +250,10 @@ class PlayBaxCameraEngine(
         return context.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     }
 
+    fun handlePinchZoom(scaleFactor: Float) = CameraLensHelper.applyPinchZoom(activeCamera, scaleFactor)
+
+    fun handleTapToFocus(x: Float, y: Float) = CameraLensHelper.applyTapToFocus(activeCamera, previewView, x, y)
+
     fun startRecordingIfNeeded() {
         if (stageRecorder.isRecording || !isStageRunning) return
         val isLand = isCurrentlyLandscape()

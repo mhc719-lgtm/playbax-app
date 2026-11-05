@@ -1,5 +1,6 @@
 package com.playbax.app
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -7,6 +8,9 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
+import android.view.GestureDetector
+import android.view.MotionEvent
+import android.view.ScaleGestureDetector
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -50,15 +54,19 @@ class DelayedScreenPanelView(context: Context) : View(context) {
 }
 
 /**
- * Multi-screen camera stage holding the live PreviewView anchor and 1, 2, or 3
- * full-bleed DelayedScreenPanelView viewports in Portrait Stacked or Landscape Side-by-Side.
+ * Multi-screen camera stage holding the live PreviewView anchor, 1–3 full-bleed
+ * DelayedScreenPanelView viewports, and clutter-free Pinch-to-Zoom + Tap-to-Focus gestures.
  */
+@SuppressLint("ClickableViewAccessibility")
 class PlayBaxMultiScreenStage(context: Context) : FrameLayout(context) {
 
     val previewView = PreviewView(context).apply {
         implementationMode = PreviewView.ImplementationMode.COMPATIBLE
         scaleType = PreviewView.ScaleType.FILL_CENTER
     }
+
+    var onPinchZoomDelta: ((Float) -> Unit)? = null
+    var onTapToFocusPoint: ((Float, Float, Int, Int) -> Unit)? = null
 
     private val tilesGrid = LinearLayout(context)
     val panels = listOf(
@@ -71,11 +79,39 @@ class PlayBaxMultiScreenStage(context: Context) : FrameLayout(context) {
         View(context).apply { setBackgroundColor(Color.parseColor("#26FFFFFF")) }
     )
 
+    private val scaleDetector = ScaleGestureDetector(
+        context,
+        object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            override fun onScale(detector: ScaleGestureDetector): Boolean {
+                onPinchZoomDelta?.invoke(detector.scaleFactor)
+                return true
+            }
+        }
+    )
+
+    private val tapDetector = GestureDetector(
+        context,
+        object : GestureDetector.SimpleOnGestureListener() {
+            override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                onTapToFocusPoint?.invoke(e.x, e.y, width, height)
+                return true
+            }
+        }
+    )
+
     init {
         setBackgroundColor(Color.BLACK)
         addView(previewView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         addView(tilesGrid, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         applyStageLayout(screenCount = 1, sideBySide = false)
+
+        setOnTouchListener { _, event ->
+            scaleDetector.onTouchEvent(event)
+            if (!scaleDetector.isInProgress) {
+                tapDetector.onTouchEvent(event)
+            }
+            true
+        }
     }
 
     fun clearPanelBitmaps() {
