@@ -19,15 +19,19 @@ class DelayedFrameResult(
 )
 
 /**
- * Thread-safe, memory-capped circular ring buffer holding compressed JPEG frames in RAM
- * for 1-30s (up to 3x cascading screens = 90s). All JPEG decoding runs outside the lock
+ * Thread-safe, memory-capped circular ring buffer holding HD compressed JPEG frames in RAM
+ * for 1-30s (up to 3x cascading screens = 90s). Decodes full 32-bit ARGB_8888 bitmaps
  * on a background worker thread so the UI thread never blocks.
  */
 class PlayBaxFrameRingBuffer {
 
     companion object {
-        private const val MAX_MEMORY_BYTES = 72L * 1024L * 1024L // 72 MB safe cap
-        private const val MIN_FRAME_INTERVAL_MS = 42L // ~24 fps smooth target
+        private const val MIN_FRAME_INTERVAL_MS = 40L // ~25 fps smooth HD target
+    }
+
+    private val maxMemoryBytes: Long = run {
+        val maxHeap = Runtime.getRuntime().maxMemory()
+        (maxHeap / 2L).coerceIn(96L * 1024L * 1024L, 192L * 1024L * 1024L)
     }
 
     private val lock = Any()
@@ -42,12 +46,6 @@ class PlayBaxFrameRingBuffer {
         }
     }
 
-    fun getLastPushedTimestampMs(): Long {
-        synchronized(lock) {
-            return lastPushedTimestampMs
-        }
-    }
-
     fun pushFrame(jpegBytes: ByteArray, timestampMs: Long, maxDelayMs: Long) {
         synchronized(lock) {
             lastPushedTimestampMs = timestampMs
@@ -59,7 +57,7 @@ class PlayBaxFrameRingBuffer {
             var removeCount = 0
             while (removeCount < frames.size - 2) {
                 val old = frames[removeCount]
-                if (old.timestampMs < cutoffMs || totalBytesUsed > MAX_MEMORY_BYTES) {
+                if (old.timestampMs < cutoffMs || totalBytesUsed > maxMemoryBytes) {
                     totalBytesUsed -= old.jpegBytes.size
                     removeCount++
                 } else {
@@ -111,7 +109,6 @@ class PlayBaxFrameRingBuffer {
             }
         }
 
-        // Skip re-decoding if this screen already displays this exact packet!
         if (packet.id == lastPacketId && currentBitmap != null && !currentBitmap.isRecycled) {
             return DelayedFrameResult(packet.id, currentBitmap, warmingUp, remainingSec, fillProgress)
         }
@@ -150,7 +147,7 @@ class PlayBaxFrameRingBuffer {
     private fun decodeJpegNewBitmap(bytes: ByteArray): Bitmap? {
         return try {
             val opts = BitmapFactory.Options().apply {
-                inPreferredConfig = Bitmap.Config.RGB_565
+                inPreferredConfig = Bitmap.Config.ARGB_8888
             }
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
         } catch (_: Exception) {

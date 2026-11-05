@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Color
@@ -47,6 +48,8 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+
         val stage = PlayBaxMultiScreenStage(this)
         ui = MainActivityUiBuilder.build(this, stage)
         setContentView(ui.rootFrame)
@@ -60,6 +63,12 @@ class MainActivity : AppCompatActivity() {
                 if (!isInCameraStage) return@PlayBaxCameraEngine
                 for (i in results.indices) {
                     ui.multiScreenStage.panels[i].updateFrameState(results[i].bitmap)
+                }
+            },
+            onOrientationChangedCallback = {
+                if (isInCameraStage) {
+                    ui.multiScreenStage.clearPanelBitmaps()
+                    syncUiState()
                 }
             },
             onStatusToast = { msg -> Toast.makeText(this, msg, Toast.LENGTH_SHORT).show() },
@@ -143,7 +152,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun wireCameraControls() {
         ui.recordActionBtn.setOnClickListener {
-            if (isVideoRecordingNow) cameraEngine.stopRecordingIfActive()
+            if (isVideoRecordingNow) cameraEngine.stopRecordingIfActive(silent = false)
             else {
                 PlayBaxPreferences.setRecordEnabled(this, true)
                 cameraEngine.startRecordingIfNeeded()
@@ -159,22 +168,24 @@ class MainActivity : AppCompatActivity() {
 
     private fun enterCameraStage() {
         isInCameraStage = true
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
         cameraEngine.isFrozen = false
         ringBuffer.clear()
         ui.multiScreenStage.clearPanelBitmaps()
         syncUiState()
         cameraEngine.startCameraSession()
         if (PlayBaxPreferences.isRecordEnabled(this)) {
-            ui.rootFrame.postDelayed({ if (isInCameraStage) cameraEngine.startRecordingIfNeeded() }, 650L)
+            ui.rootFrame.postDelayed({ if (isInCameraStage) cameraEngine.startRecordingIfNeeded() }, 450L)
         }
     }
 
     private fun returnToHomeSettings() {
         isInCameraStage = false
         cameraEngine.isFrozen = false
-        cameraEngine.stopStageSession()
+        cameraEngine.stopStageSession(saveActiveRecording = true)
         ringBuffer.clear()
         ui.multiScreenStage.clearPanelBitmaps()
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         syncUiState()
     }
 
@@ -184,7 +195,8 @@ class MainActivity : AppCompatActivity() {
         val layoutMode = PlayBaxPreferences.getLayoutMode(this)
         val recordEnabled = PlayBaxPreferences.isRecordEnabled(this)
         val lensMode = PlayBaxPreferences.getLensMode(this)
-        val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE ||
+            (isInCameraStage && ::cameraEngine.isInitialized && cameraEngine.isCurrentlyLandscape())
 
         ui.delayRingGauge.updateState(delaySec, screenCount)
         ui.topModePill.text = if (recordEnabled) "● MP4 Capture" else "Memory Stream"
@@ -235,6 +247,13 @@ class MainActivity : AppCompatActivity() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        if (::cameraEngine.isInitialized) {
+            cameraEngine.onDisplayRotationChanged()
+            ui.rootFrame.postDelayed({
+                cameraEngine.onDisplayRotationChanged()
+                syncUiState()
+            }, 120L)
+        }
         syncUiState()
     }
 
@@ -247,7 +266,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onPause() {
-        if (isInCameraStage) cameraEngine.stopStageSession()
+        if (isInCameraStage) cameraEngine.stopStageSession(saveActiveRecording = true)
         super.onPause()
     }
 
