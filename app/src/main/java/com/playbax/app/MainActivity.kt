@@ -14,6 +14,8 @@ import android.os.Bundle
 import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.WindowManager
+import android.widget.FrameLayout
+import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -24,11 +26,13 @@ import androidx.core.content.ContextCompat
 class MainActivity : AppCompatActivity() {
 
     private lateinit var ui: MainActivityViews
+    private lateinit var userMenuOverlay: ScrollView
     private val ringBuffer = PlayBaxFrameRingBuffer()
     private lateinit var cameraEngine: PlayBaxCameraEngine
 
     private var isInCameraStage = false
     private var isShowingClipsTab = false
+    private var isUserMenuOpen = false
     private var isVideoRecordingNow = false
     private var pendingLaunchAfterPermission = false
     private var lastAppliedScreenCount = -1
@@ -58,27 +62,22 @@ class MainActivity : AppCompatActivity() {
 
         val stage = PlayBaxMultiScreenStage(this)
         ui = MainActivityUiBuilder.build(this, stage)
+        userMenuOverlay = PlayBaxUserMenuSheet.buildUserMenuOverlay(
+            context = this, onClose = { closeUserMenu() }, onStartCamera = { triggerStartCamera() },
+            onOpenClips = { openClipsTab() }, onResetSettings = { resetDefaults() }
+        )
+        ui.rootFrame.addView(userMenuOverlay, FrameLayout.LayoutParams(-1, -1))
         setContentView(ui.rootFrame)
 
         cameraEngine = PlayBaxCameraEngine(
-            context = this,
-            lifecycleOwner = this,
-            previewView = stage.previewView,
-            ringBuffer = ringBuffer,
+            context = this, lifecycleOwner = this, previewView = stage.previewView, ringBuffer = ringBuffer,
             onFramesDecoded = { results, _ ->
-                if (!isInCameraStage) return@PlayBaxCameraEngine
-                for (i in results.indices) ui.multiScreenStage.panels[i].updateFrameState(results[i].bitmap)
+                if (isInCameraStage) for (i in results.indices) ui.multiScreenStage.panels[i].updateFrameState(results[i].bitmap)
             },
-            onOrientationChangedCallback = {
-                if (isInCameraStage) {
-                    ui.multiScreenStage.clearPanelBitmaps()
-                    syncUiState()
-                }
-            },
+            onOrientationChangedCallback = { if (isInCameraStage) { ui.multiScreenStage.clearPanelBitmaps(); syncUiState() } },
             onStatusToast = { msg -> Toast.makeText(this, msg, Toast.LENGTH_SHORT).show() },
             onRecordingStateChanged = { recording -> isVideoRecordingNow = recording; syncUiState() }
         )
-
         stage.onPinchZoomDelta = { factor -> cameraEngine.handlePinchZoom(factor) }
         stage.onTapToFocusPoint = { x, y, _, _ -> cameraEngine.handleTapToFocus(x, y) }
 
@@ -86,6 +85,7 @@ class MainActivity : AppCompatActivity() {
             override fun handleOnBackPressed() {
                 when {
                     isInCameraStage -> returnToHomeSettings()
+                    isUserMenuOpen -> closeUserMenu()
                     isShowingClipsTab -> { isShowingClipsTab = false; syncUiState() }
                     else -> { isEnabled = false; onBackPressedDispatcher.onBackPressed() }
                 }
@@ -97,38 +97,56 @@ class MainActivity : AppCompatActivity() {
         syncUiState()
     }
 
-    private fun wireHomeControls() {
-        ui.badgeCircle.setOnClickListener { PlayBaxClipsHelper.showGuideAndPrivacyDialog(this) }
-        ui.topModePill.setOnClickListener { PlayBaxClipsHelper.showGuideAndPrivacyDialog(this) }
-        ui.navSetupTab.setOnClickListener { isShowingClipsTab = false; syncUiState() }
-        ui.navClipsTab.setOnClickListener {
-            isShowingClipsTab = true
-            PlayBaxClipsHelper.populateClipsContainer(this, ui.clipsBodyCol) { isShowingClipsTab = false; triggerStartCamera() }
-            syncUiState()
-        }
-        ui.navGuideTab.setOnClickListener { PlayBaxClipsHelper.showGuideAndPrivacyDialog(this) }
+    private fun openClipsTab() {
+        isShowingClipsTab = true
+        PlayBaxClipsHelper.populateClipsContainer(this, ui.clipsBodyCol) { isShowingClipsTab = false; triggerStartCamera() }
+        syncUiState()
+    }
 
+    private fun openUserMenu() {
+        isUserMenuOpen = true
+        userMenuOverlay.visibility = View.VISIBLE
+        userMenuOverlay.translationX = resources.displayMetrics.widthPixels * 0.22f
+        userMenuOverlay.alpha = 0f
+        userMenuOverlay.animate().translationX(0f).alpha(1f).setDuration(180L).start()
+    }
+
+    private fun closeUserMenu() {
+        isUserMenuOpen = false
+        userMenuOverlay.visibility = View.GONE
+    }
+
+    private fun resetDefaults() {
+        PlayBaxPreferences.setDelaySeconds(this, 5)
+        PlayBaxPreferences.setScreenCount(this, 1)
+        PlayBaxPreferences.setLayoutMode(this, PlayBaxPreferences.LAYOUT_AUTO)
+        PlayBaxPreferences.setRecordEnabled(this, false)
+        PlayBaxPreferences.setLensMode(this, PlayBaxPreferences.LENS_REAR_WIDE)
+        Toast.makeText(this, "Reset to default settings", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun wireHomeControls() {
+        ui.badgeCircle.setOnClickListener { openUserMenu() }
+        ui.navSetupTab.rootTab.setOnClickListener { isShowingClipsTab = false; syncUiState() }
+        ui.navClipsTab.rootTab.setOnClickListener { openClipsTab() }
         ui.screensTile.card.setOnClickListener { anchor ->
             val d = PlayBaxPreferences.getDelaySeconds(this)
             val idx = (PlayBaxPreferences.getScreenCount(this) - 1).coerceIn(0, 2)
             GoogleStyleWidgets.showGooglePopupMenu(this, anchor, PlayBaxPreferences.getScreenMenuOptions(d), idx) { PlayBaxPreferences.setScreenCount(this, it + 1) }
         }
         ui.layoutTile.card.setOnClickListener { anchor ->
-            val idx = PlayBaxPreferences.getLayoutMode(this)
-            GoogleStyleWidgets.showGooglePopupMenu(this, anchor, PlayBaxPreferences.getLayoutMenuOptions(), idx) { PlayBaxPreferences.setLayoutMode(this, it) }
+            GoogleStyleWidgets.showGooglePopupMenu(this, anchor, PlayBaxPreferences.getLayoutMenuOptions(), PlayBaxPreferences.getLayoutMode(this)) { PlayBaxPreferences.setLayoutMode(this, it) }
         }
         ui.captureTile.card.setOnClickListener { anchor ->
             val idx = if (PlayBaxPreferences.isRecordEnabled(this)) 1 else 0
             GoogleStyleWidgets.showGooglePopupMenu(this, anchor, PlayBaxPreferences.getRecordMenuOptions(), idx) { PlayBaxPreferences.setRecordEnabled(this, it == 1) }
         }
         ui.lensTile.card.setOnClickListener { anchor ->
-            val idx = PlayBaxPreferences.getLensMode(this)
-            GoogleStyleWidgets.showGooglePopupMenu(this, anchor, PlayBaxPreferences.getLensMenuOptions(), idx) { PlayBaxPreferences.setLensMode(this, it) }
+            GoogleStyleWidgets.showGooglePopupMenu(this, anchor, PlayBaxPreferences.getLensMenuOptions(), PlayBaxPreferences.getLensMode(this)) { PlayBaxPreferences.setLensMode(this, it) }
         }
         ui.cascadeTile.card.setOnClickListener { PlayBaxPreferences.setScreenCount(this, (PlayBaxPreferences.getScreenCount(this) % 3) + 1) }
         ui.minusBtn.setOnClickListener { PlayBaxPreferences.setDelaySeconds(this, PlayBaxPreferences.getDelaySeconds(this) - 1) }
         ui.plusBtn.setOnClickListener { PlayBaxPreferences.setDelaySeconds(this, PlayBaxPreferences.getDelaySeconds(this) + 1) }
-
         ui.delaySlider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) PlayBaxPreferences.setDelaySeconds(this@MainActivity, progress + PlayBaxPreferences.MIN_DELAY_SECONDS)
@@ -142,14 +160,7 @@ class MainActivity : AppCompatActivity() {
                 PlayBaxPreferences.setDelaySeconds(this, sec)
             }
         }
-        ui.resetDefaultsBtn.setOnClickListener {
-            PlayBaxPreferences.setDelaySeconds(this, 5)
-            PlayBaxPreferences.setScreenCount(this, 1)
-            PlayBaxPreferences.setLayoutMode(this, PlayBaxPreferences.LAYOUT_AUTO)
-            PlayBaxPreferences.setRecordEnabled(this, false)
-            PlayBaxPreferences.setLensMode(this, PlayBaxPreferences.LENS_REAR_WIDE)
-            Toast.makeText(this, "Reset to default settings", Toast.LENGTH_SHORT).show()
-        }
+        ui.resetDefaultsBtn.setOnClickListener { resetDefaults() }
         ui.applyLaunchBtn.setOnClickListener { triggerStartCamera() }
     }
 
@@ -167,14 +178,12 @@ class MainActivity : AppCompatActivity() {
             else cameraEngine.startRecordingIfNeeded()
             syncUiState()
         }
-        ui.freezeToggleBtn.setOnClickListener {
-            cameraEngine.isFrozen = !cameraEngine.isFrozen
-            syncUiState()
-        }
+        ui.freezeToggleBtn.setOnClickListener { cameraEngine.isFrozen = !cameraEngine.isFrozen; syncUiState() }
         ui.stopToHomeBtn.setOnClickListener { returnToHomeSettings() }
     }
 
     private fun enterCameraStage() {
+        closeUserMenu()
         isInCameraStage = true
         isVideoRecordingNow = false
         PlayBaxPreferences.setRecordEnabled(this, false)
@@ -211,9 +220,7 @@ class MainActivity : AppCompatActivity() {
         ui.screensTile.valueText.text = if (screenCount == 1) "1 Screen" else "$screenCount Screens"
 
         val cascadeStr = when (screenCount) {
-            1 -> "+${delaySec}s"
-            2 -> "+${delaySec}s • +${delaySec * 2}s"
-            else -> "+${delaySec}s • +${delaySec * 2}s • +${delaySec * 3}s"
+            1 -> "+${delaySec}s"; 2 -> "+${delaySec}s • +${delaySec * 2}s"; else -> "+${delaySec}s • +${delaySec * 2}s • +${delaySec * 3}s"
         }
         ui.screensTile.subtitleText.text = cascadeStr
         ui.layoutTile.valueText.text = PlayBaxPreferences.getLayoutChipLabel(layoutMode, isLandscape)
@@ -225,40 +232,31 @@ class MainActivity : AppCompatActivity() {
 
         val targetProgress = delaySec - PlayBaxPreferences.MIN_DELAY_SECONDS
         if (ui.delaySlider.progress != targetProgress) ui.delaySlider.progress = targetProgress
-
         ui.presetButtons.forEach { (sec, btn) ->
             val sel = (sec == delaySec)
-            btn.background = GoogleStyleWidgets.roundedDrawable(this, if (sel) GoogleStyleWidgets.BRAND_ORANGE_PRIMARY else "#F5EBE7", 999)
+            btn.background = GoogleStyleWidgets.roundedDrawable(this, if (sel) GoogleStyleWidgets.BRAND_ORANGE_PRIMARY else "#EEF1F6", 999)
             btn.setTextColor(Color.parseColor(if (sel) "#FFFFFF" else GoogleStyleWidgets.TEXT_DARK))
         }
 
         ui.setupBodyCol.visibility = if (isShowingClipsTab) View.GONE else View.VISIBLE
         ui.clipsBodyCol.visibility = if (isShowingClipsTab) View.VISIBLE else View.GONE
-        ui.navSetupTab.background = GoogleStyleWidgets.roundedDrawable(this, if (!isShowingClipsTab) GoogleStyleWidgets.SOFT_PEACH_PILL else "#FFFFFF", 999)
-        ui.navSetupTab.setTextColor(Color.parseColor(if (!isShowingClipsTab) "#BF360C" else GoogleStyleWidgets.TEXT_MUTED))
-        ui.navClipsTab.background = GoogleStyleWidgets.roundedDrawable(this, if (isShowingClipsTab) GoogleStyleWidgets.SOFT_PEACH_PILL else "#FFFFFF", 999)
-        ui.navClipsTab.setTextColor(Color.parseColor(if (isShowingClipsTab) "#BF360C" else GoogleStyleWidgets.TEXT_MUTED))
-        ui.navGuideTab.background = GoogleStyleWidgets.roundedDrawable(this, "#FFFFFF", 999)
-        ui.navGuideTab.setTextColor(Color.parseColor(GoogleStyleWidgets.TEXT_MUTED))
+        GoogleStyleWidgets.styleHealthNavTab(this, ui.navSetupTab, active = !isShowingClipsTab)
+        GoogleStyleWidgets.styleHealthNavTab(this, ui.navClipsTab, active = isShowingClipsTab)
 
         val sideBySide = when (layoutMode) {
-            PlayBaxPreferences.LAYOUT_PORTRAIT_STACKED -> false
-            PlayBaxPreferences.LAYOUT_LANDSCAPE_SIDE -> true
-            else -> isLandscape
+            PlayBaxPreferences.LAYOUT_PORTRAIT_STACKED -> false; PlayBaxPreferences.LAYOUT_LANDSCAPE_SIDE -> true; else -> isLandscape
         }
         if (lastAppliedScreenCount != screenCount || lastAppliedSideBySide != sideBySide) {
             ui.multiScreenStage.applyStageLayout(screenCount, sideBySide)
-            lastAppliedScreenCount = screenCount
-            lastAppliedSideBySide = sideBySide
+            lastAppliedScreenCount = screenCount; lastAppliedSideBySide = sideBySide
         }
 
         ui.homeContainer.visibility = if (isInCameraStage) View.GONE else View.VISIBLE
         ui.cameraStageContainer.visibility = if (isInCameraStage) View.VISIBLE else View.GONE
-
         if (isInCameraStage) {
             ui.freezeToggleBtn.text = if (cameraEngine.isFrozen) "▶ Play" else "⏸ Pause"
             ui.recordActionBtn.text = if (isVideoRecordingNow) "● Rec On" else "● Rec"
-            ui.recordActionBtn.setTextColor(Color.parseColor(if (isVideoRecordingNow) "#FF7043" else "#FFFFFF"))
+            ui.recordActionBtn.setTextColor(Color.parseColor(if (isVideoRecordingNow) "#FF6D00" else "#FFFFFF"))
         }
     }
 

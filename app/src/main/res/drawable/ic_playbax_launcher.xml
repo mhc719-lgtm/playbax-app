@@ -6,7 +6,7 @@
     android:viewportWidth="48"
     android:viewportHeight="48">
 
-    <!-- Frameless In-App PlayBax Warm Orange-Red Squircle Chrono-Replay Emblem -->
+    <!-- Frameless In-App PlayBax High-Energy Electric Orange-Red Squircle Emblem -->
     <path
         android:pathData="M14,4 L34,4 C39.5,4 44,8.5 44,14 L44,34 C44,39.5 39.5,44 34,44 L14,44 C8.5,44 4,39.5 4,34 L4,14 C4,8.5 8.5,4 14,4 Z">
         <aapt:attr name="android:fillColor">
@@ -16,10 +16,10 @@
                 android:startY="4"
                 android:endX="44"
                 android:endY="44">
-                <item android:offset="0.0" android:color="#B71C1C" />
-                <item android:offset="0.38" android:color="#D84315" />
-                <item android:offset="0.72" android:color="#F4511E" />
-                <item android:offset="1.0" android:color="#FF7043" />
+                <item android:offset="0.0" android:color="#FF1744" />
+                <item android:offset="0.38" android:color="#FF3D00" />
+                <item android:offset="0.75" android:color="#FF6D00" />
+                <item android:offset="1.0" android:color="#FF9100" />
             </gradient>
         </aapt:attr>
     </path>

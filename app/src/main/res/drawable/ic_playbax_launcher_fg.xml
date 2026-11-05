@@ -7,10 +7,9 @@
     android:viewportHeight="108">
 
     <!--
-      PlayBax Warm Orange-Red Google Soft Style Adaptive Foreground:
+      PlayBax High-Energy Electric Orange-Red Adaptive Foreground:
       - Soft-pillowed squircle motion studio badge inside the 66dp safe zone (X=34..74, Y=34..74)
-      - Luminous Crimson-Orange (#B71C1C) -> Burnt Orange-Red (#D84315) -> Deep Orange (#F4511E) -> Coral (#FF7043)
-      - Crisp white Chrono-Replay loop arc + Play triangle inside
+      - Kinetic Crimson (#FF1744) -> Electric Orange-Red (#FF3D00) -> Radiant Tangerine (#FF6D00) -> Solar Amber (#FF9100)
     -->
 
     <path
@@ -22,10 +21,10 @@
                 android:startY="34"
                 android:endX="74"
                 android:endY="74">
-                <item android:offset="0.0" android:color="#B71C1C" />
-                <item android:offset="0.38" android:color="#D84315" />
-                <item android:offset="0.72" android:color="#F4511E" />
-                <item android:offset="1.0" android:color="#FF7043" />
+                <item android:offset="0.0" android:color="#FF1744" />
+                <item android:offset="0.38" android:color="#FF3D00" />
+                <item android:offset="0.75" android:color="#FF6D00" />
+                <item android:offset="1.0" android:color="#FF9100" />
             </gradient>
         </aapt:attr>
     </path>
@@ -38,8 +37,8 @@
                 android:centerX="42"
                 android:centerY="40"
                 android:gradientRadius="26">
-                <item android:offset="0.0" android:color="#80FFAB91" />
-                <item android:offset="1.0" android:color="#00F4511E" />
+                <item android:offset="0.0" android:color="#80FFD180" />
+                <item android:offset="1.0" android:color="#00FF3D00" />
             </gradient>
         </aapt:attr>
     </path>

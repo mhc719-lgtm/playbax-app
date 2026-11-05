@@ -31,9 +31,8 @@ class MainActivityViews(
     val presetButtons: List<Pair<Int, TextView>>,
     val resetDefaultsBtn: TextView,
     val applyLaunchBtn: TextView,
-    val navSetupTab: TextView,
-    val navClipsTab: TextView,
-    val navGuideTab: TextView,
+    val navSetupTab: HealthBottomNavTabRefs,
+    val navClipsTab: HealthBottomNavTabRefs,
     val cameraStageContainer: FrameLayout,
     val multiScreenStage: PlayBaxMultiScreenStage,
     val lowVisControlPill: LinearLayout,
@@ -56,7 +55,7 @@ object MainActivityUiBuilder {
         }
         val homeCol = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(context, 18), dp(context, 44), dp(context, 18), dp(context, 20))
+            setPadding(dp(context, 16), dp(context, 44), dp(context, 16), dp(context, 18))
         }
 
         val topHeader = LinearLayout(context).apply {
@@ -66,6 +65,8 @@ object MainActivityUiBuilder {
         }
         val topModePill = TextView(context).apply {
             text = "1080p • OIS+EIS"
+            isClickable = false
+            isFocusable = false
             setTextColor(Color.parseColor(GoogleStyleWidgets.TEXT_DARK))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
@@ -78,7 +79,7 @@ object MainActivityUiBuilder {
             setTextColor(Color.WHITE)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            background = GoogleStyleWidgets.roundedDrawable(context, GoogleStyleWidgets.BRAND_ORANGE_PRIMARY, 999, "#FF7043")
+            background = GoogleStyleWidgets.roundedDrawable(context, GoogleStyleWidgets.BRAND_CRIMSON, 999, "#FF6D00")
             layoutParams = LinearLayout.LayoutParams(dp(context, 36), dp(context, 36)).apply { leftMargin = dp(context, 10) }
         }
         topHeader.addView(GoogleStyleWidgets.createBrandHeaderRow(context))
@@ -93,44 +94,46 @@ object MainActivityUiBuilder {
             visibility = View.GONE
         }
 
+        // Row 1: Strict 50% / 50% (1f : 1f) Symmetry — 220dp Left Gauge == 3 × 68dp + 2 × 8dp Right Stack
         val heroBentoRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 10) }
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 8) }
         }
         val delayRingGauge = DelayRingGaugeView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(0, dp(context, 220), 0.94f).apply { rightMargin = dp(context, 10) }
+            layoutParams = LinearLayout.LayoutParams(0, dp(context, 220), 1f).apply { rightMargin = dp(context, 5) }
         }
         val rightStack = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(0, -2, 1.06f)
+            layoutParams = LinearLayout.LayoutParams(0, dp(context, 220), 1f).apply { leftMargin = dp(context, 5) }
         }
-        val screensTile = GoogleStyleWidgets.createPastelBentoTile(context, "#FFDAD0", "▣", "#BF360C", "Playback screens", "1 Screen", "Tap to switch 1–3") {}
-        val layoutTile = GoogleStyleWidgets.createPastelBentoTile(context, "#F5EBE7", "⇅", "#3E2723", "Screen layout", "Auto Rotate", "Stacked / Side") {}
-        val captureTile = GoogleStyleWidgets.createPastelBentoTile(context, "#FCE4EC", "●", "#B71C1C", "Capture mode", "Memory Only", "Unrecorded RAM") {}
+        val screensTile = GoogleStyleWidgets.createPastelBentoTile(context, "#FF9E80", "▣", "#FF3D00", "Playback screens", "1 Screen", "Tap to switch 1–3") {}
+        val layoutTile = GoogleStyleWidgets.createPastelBentoTile(context, "#EEF1F6", "⇅", "#1B1B1F", "Screen layout", "Auto Rotate", "Stacked / Side") {}
+        val captureTile = GoogleStyleWidgets.createPastelBentoTile(context, "#FCE4EC", "●", "#FF1744", "Capture mode", "Memory Only", "Unrecorded RAM") {}
 
-        rightStack.addView(screensTile.card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 8) })
-        rightStack.addView(layoutTile.card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 8) })
-        rightStack.addView(captureTile.card, LinearLayout.LayoutParams(-1, -2))
+        rightStack.addView(screensTile.card, LinearLayout.LayoutParams(-1, dp(context, 68)).apply { bottomMargin = dp(context, 8) })
+        rightStack.addView(layoutTile.card, LinearLayout.LayoutParams(-1, dp(context, 68)).apply { bottomMargin = dp(context, 8) })
+        rightStack.addView(captureTile.card, LinearLayout.LayoutParams(-1, dp(context, 68)))
         heroBentoRow.addView(delayRingGauge)
         heroBentoRow.addView(rightStack)
         setupBodyCol.addView(heroBentoRow)
 
+        // Row 2: Strict 50% / 50% (1f : 1f) Symmetry — 68dp Fixed Card Height & 10dp Center Gutter
         val secondBentoRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 12) }
         }
-        val lensTile = GoogleStyleWidgets.createPastelBentoTile(context, "#FFF0E5", "◎", "#D84315", "Camera lens", "1.0x Rear", "Tap to switch lens") {}
-        val cascadeTile = GoogleStyleWidgets.createPastelBentoTile(context, "#FFE4D6", "⏱", "#B71C1C", "Delay cascade", "+5s behind", "1–30s memory loop") {}
-        secondBentoRow.addView(lensTile.card, weightLp(context, 1f, 8))
-        secondBentoRow.addView(cascadeTile.card, weightLp(context, 1f, 0))
+        val lensTile = GoogleStyleWidgets.createPastelBentoTile(context, "#EEF1F6", "◎", "#FF3D00", "Camera lens", "1.0x Rear", "Tap to switch lens") {}
+        val cascadeTile = GoogleStyleWidgets.createPastelBentoTile(context, "#FF9E80", "⏱", "#D50000", "Delay cascade", "+5s behind", "1–30s memory loop") {}
+        secondBentoRow.addView(lensTile.card, LinearLayout.LayoutParams(0, dp(context, 68), 1f).apply { rightMargin = dp(context, 5) })
+        secondBentoRow.addView(cascadeTile.card, LinearLayout.LayoutParams(0, dp(context, 68), 1f).apply { leftMargin = dp(context, 5) })
         setupBodyCol.addView(secondBentoRow)
 
         val sliderSection = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(context, 16), dp(context, 12), dp(context, 16), dp(context, 12))
-            background = GoogleStyleWidgets.roundedDrawable(context, "#FFFFFF", 24, "#F2E1DA")
-            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 14) }
+            background = GoogleStyleWidgets.roundedDrawable(context, "#FFFFFF", 24, "#E8ECF2")
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 12) }
         }
         val sliderRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -162,14 +165,15 @@ object MainActivityUiBuilder {
         sliderSection.addView(presetsRow)
         setupBodyCol.addView(sliderSection)
 
+        // Row 4: Symmetric 50% / 50% Action Buttons
         val actionRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        val resetDefaultsBtn = createPillButton(context, "↺  Reset", GoogleStyleWidgets.SOFT_PEACH_PILL, "#3E2723", 50)
-        val applyLaunchBtn = createPillButton(context, "▶  Apply & Start Camera", GoogleStyleWidgets.BRAND_ORANGE_PRIMARY, "#FFFFFF", 50)
-        actionRow.addView(resetDefaultsBtn, weightLp(context, 0.72f, 10, heightDp = 50))
-        actionRow.addView(applyLaunchBtn, weightLp(context, 1.58f, 0, heightDp = 50))
+        val resetDefaultsBtn = createPillButton(context, "↺  Reset", GoogleStyleWidgets.SOFT_PEACH_PILL, "#B71C1C", 50)
+        val applyLaunchBtn = createPillButton(context, "▶  Start Camera", GoogleStyleWidgets.BRAND_ORANGE_PRIMARY, "#FFFFFF", 50)
+        actionRow.addView(resetDefaultsBtn, LinearLayout.LayoutParams(0, dp(context, 50), 1f).apply { rightMargin = dp(context, 5) })
+        actionRow.addView(applyLaunchBtn, LinearLayout.LayoutParams(0, dp(context, 50), 1f).apply { leftMargin = dp(context, 5) })
         setupBodyCol.addView(actionRow)
 
         homeCol.addView(setupBodyCol)
@@ -177,18 +181,17 @@ object MainActivityUiBuilder {
         homeScroll.addView(homeCol)
         homeContainer.addView(homeScroll)
 
+        // Google Health Style Bottom Navigation Bar (Top 64x32dp Icon Pill + Bottom 12sp Label)
         val bottomNavBar = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(context, 16), dp(context, 8), dp(context, 16), dp(context, 14))
-            background = GoogleStyleWidgets.roundedDrawable(context, "#FFFFFF", 0, "#F2E1DA")
+            setPadding(dp(context, 24), dp(context, 6), dp(context, 24), dp(context, 10))
+            background = GoogleStyleWidgets.roundedDrawable(context, "#FFFFFF", 0)
         }
-        val navSetupTab = createBottomNavTab(context, "⚙  Setup")
-        val navClipsTab = createBottomNavTab(context, "🎬  Saved Clips")
-        val navGuideTab = createBottomNavTab(context, "ⓘ  Guide & Privacy")
-        bottomNavBar.addView(navSetupTab, weightLp(context, 1f, 6))
-        bottomNavBar.addView(navClipsTab, weightLp(context, 1f, 6))
-        bottomNavBar.addView(navGuideTab, weightLp(context, 1f, 0))
+        val navSetupTab = GoogleStyleWidgets.createHealthBottomNavTab(context, "⚙", "Setup")
+        val navClipsTab = GoogleStyleWidgets.createHealthBottomNavTab(context, "🎬", "Saved Clips")
+        bottomNavBar.addView(navSetupTab.rootTab, LinearLayout.LayoutParams(0, -2, 1f))
+        bottomNavBar.addView(navClipsTab.rootTab, LinearLayout.LayoutParams(0, -2, 1f))
         homeContainer.addView(bottomNavBar, LinearLayout.LayoutParams(-1, -2))
         root.addView(homeContainer, FrameLayout.LayoutParams(-1, -1))
 
@@ -222,16 +225,9 @@ object MainActivityUiBuilder {
             root, homeContainer, topModePill, badgeCircle, setupBodyCol, clipsBodyCol,
             delayRingGauge, screensTile, layoutTile, captureTile, lensTile, cascadeTile,
             minusBtn, delaySlider, plusBtn, presetButtons, resetDefaultsBtn, applyLaunchBtn,
-            navSetupTab, navClipsTab, navGuideTab, cameraStageContainer, stage,
+            navSetupTab, navClipsTab, cameraStageContainer, stage,
             lowVisControlPill, recordActionBtn, freezeToggleBtn, stopToHomeBtn
         )
-    }
-
-    private fun createBottomNavTab(context: Context, label: String): TextView = TextView(context).apply {
-        text = label; gravity = Gravity.CENTER
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
-        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-        setPadding(dp(context, 8), dp(context, 9), dp(context, 8), dp(context, 9))
     }
 
     private fun createLowVisControlItem(context: Context, label: String): TextView = TextView(context).apply {
