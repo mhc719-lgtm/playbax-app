@@ -152,9 +152,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun wireCameraControls() {
         ui.recordActionBtn.setOnClickListener {
-            if (isVideoRecordingNow) cameraEngine.stopRecordingIfActive(silent = false)
-            else {
-                PlayBaxPreferences.setRecordEnabled(this, true)
+            if (isVideoRecordingNow) {
+                cameraEngine.stopRecordingIfActive(silent = false)
+            } else {
                 cameraEngine.startRecordingIfNeeded()
             }
             syncUiState()
@@ -168,15 +168,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun enterCameraStage() {
         isInCameraStage = true
+        isVideoRecordingNow = false
+        PlayBaxPreferences.setRecordEnabled(this, false)
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
         cameraEngine.isFrozen = false
         ringBuffer.clear()
         ui.multiScreenStage.clearPanelBitmaps()
         syncUiState()
         cameraEngine.startCameraSession()
-        if (PlayBaxPreferences.isRecordEnabled(this)) {
-            ui.rootFrame.postDelayed({ if (isInCameraStage) cameraEngine.startRecordingIfNeeded() }, 450L)
-        }
     }
 
     private fun returnToHomeSettings() {
@@ -199,7 +198,7 @@ class MainActivity : AppCompatActivity() {
             (isInCameraStage && ::cameraEngine.isInitialized && cameraEngine.isCurrentlyLandscape())
 
         ui.delayRingGauge.updateState(delaySec, screenCount)
-        ui.topModePill.text = if (recordEnabled) "● MP4 Capture" else "Memory Stream"
+        ui.topModePill.text = "1080p • OIS+EIS"
         ui.screensTile.valueText.text = if (screenCount == 1) "1 Screen" else "$screenCount Screens"
 
         val cascadeStr = when (screenCount) {
@@ -210,8 +209,8 @@ class MainActivity : AppCompatActivity() {
         ui.screensTile.subtitleText.text = cascadeStr
         ui.layoutTile.valueText.text = PlayBaxPreferences.getLayoutChipLabel(layoutMode, isLandscape)
         ui.layoutTile.subtitleText.text = if (layoutMode == PlayBaxPreferences.LAYOUT_AUTO) "Portrait / Landscape" else "Locked orientation"
-        ui.captureTile.valueText.text = if (recordEnabled) "Record MP4" else "Memory Only"
-        ui.captureTile.subtitleText.text = if (recordEnabled) "Saves to Gallery" else "Unrecorded RAM"
+        ui.captureTile.valueText.text = if (recordEnabled) "Manual ● Rec" else "Memory Only"
+        ui.captureTile.subtitleText.text = if (recordEnabled) "Tap ● Rec in feed" else "Unrecorded RAM"
         ui.lensTile.valueText.text = PlayBaxPreferences.getLensChipLabel(lensMode)
         ui.cascadeTile.valueText.text = cascadeStr
 

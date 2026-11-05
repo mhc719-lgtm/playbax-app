@@ -49,36 +49,26 @@ class PlayBaxStageRecorder(
     private var muxerStarted: Boolean = false
     private var videoTrackIndex: Int = -1
     private var tempFile: File? = null
-    private var videoWidth: Int = 720
-    private var videoHeight: Int = 1280
+    private var videoWidth: Int = 1080
+    private var videoHeight: Int = 1920
     private val bufferInfo = MediaCodec.BufferInfo()
 
     fun startRecording(isLandscape: Boolean) {
         synchronized(lock) {
             if (isRecording) return
             try {
-                videoWidth = if (isLandscape) 1280 else 720
-                videoHeight = if (isLandscape) 720 else 1280
-
                 val outTemp = File(context.cacheDir, "PlayBax_rec_${System.currentTimeMillis()}.mp4")
                 tempFile = outTemp
 
-                val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, videoWidth, videoHeight).apply {
-                    setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
-                    setInteger(MediaFormat.KEY_BIT_RATE, 6_000_000)
-                    setInteger(MediaFormat.KEY_FRAME_RATE, 24)
-                    setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
+                if (!tryConfigureEncoderLocked(if (isLandscape) 1920 else 1080, if (isLandscape) 1080 else 1920, 10_000_000)) {
+                    if (!tryConfigureEncoderLocked(if (isLandscape) 1280 else 720, if (isLandscape) 720 else 1280, 6_000_000)) {
+                        releaseLocked()
+                        mainHandler.post { onRecordingStateChanged(false) }
+                        return
+                    }
                 }
 
-                val codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
-                codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-                val surface = codec.createInputSurface()
-                codec.start()
-
                 val mediaMuxer = MediaMuxer(outTemp.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
-
-                encoder = codec
-                inputSurface = surface
                 muxer = mediaMuxer
                 muxerStarted = false
                 videoTrackIndex = -1
@@ -89,6 +79,32 @@ class PlayBaxStageRecorder(
                 releaseLocked()
                 mainHandler.post { onRecordingStateChanged(false) }
             }
+        }
+    }
+
+    private fun tryConfigureEncoderLocked(w: Int, h: Int, bitRate: Int): Boolean {
+        return try {
+            videoWidth = w
+            videoHeight = h
+            val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, w, h).apply {
+                setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
+                setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
+                setInteger(MediaFormat.KEY_FRAME_RATE, 30)
+                setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
+            }
+            val codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
+            codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+            val surface = codec.createInputSurface()
+            codec.start()
+            encoder = codec
+            inputSurface = surface
+            true
+        } catch (_: Exception) {
+            try { encoder?.release() } catch (_: Exception) {}
+            try { inputSurface?.release() } catch (_: Exception) {}
+            encoder = null
+            inputSurface = null
+            false
         }
     }
 

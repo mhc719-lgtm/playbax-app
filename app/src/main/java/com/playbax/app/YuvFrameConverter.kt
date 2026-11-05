@@ -6,13 +6,13 @@ import androidx.camera.core.ImageProxy
 import java.io.ByteArrayOutputStream
 
 /**
- * High-definition frame converter using CameraX 1.3+ native JNI ImageProxy.toBitmap()
- * at 960px HD resolution and 88% JPEG quality on the background analysis executor.
+ * Full-HD 16:9 frame converter using CameraX 1.3+ native JNI ImageProxy.toBitmap()
+ * at up to 1280px HD resolution and 92% JPEG quality on the background analysis executor.
  */
 object YuvFrameConverter {
 
-    private const val JPEG_QUALITY = 88
-    private const val DEFAULT_MAX_DIMENSION_PX = 960
+    private const val JPEG_QUALITY = 92
+    private const val DEFAULT_MAX_DIMENSION_PX = 1280
 
     fun imageProxyToUprightJpeg(
         image: ImageProxy,
@@ -58,7 +58,7 @@ object YuvFrameConverter {
             }
 
             val transformed = Bitmap.createBitmap(source, 0, 0, w, h, matrix, true)
-            val out = ByteArrayOutputStream(65536)
+            val out = ByteArrayOutputStream(98304)
             transformed.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
             if (transformed !== source && !transformed.isRecycled) {
                 transformed.recycle()

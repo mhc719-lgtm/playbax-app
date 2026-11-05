@@ -15,6 +15,7 @@ import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -27,8 +28,8 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Decoupled HD CameraX engine (1280x960 ImageAnalysis + PreviewView), live OrientationEventListener
- * rotation sync, and composite multi-screen MP4 recording via PlayBaxStageRecorder.
+ * Decoupled Full-HD 16:9 CameraX engine (1920x1080 ImageAnalysis + PreviewView with OIS/EIS anti-shake,
+ * Continuous Video AF, and 30fps AE), live OrientationEventListener rotation sync, and composite MP4 recording.
  */
 class PlayBaxCameraEngine(
     private val context: Context,
@@ -79,7 +80,7 @@ class PlayBaxCameraEngine(
     }
 
     init {
-        playbackExecutor.scheduleAtFixedRate({ tickBackgroundPlayback() }, 50L, 42L, TimeUnit.MILLISECONDS)
+        playbackExecutor.scheduleAtFixedRate({ tickBackgroundPlayback() }, 45L, 38L, TimeUnit.MILLISECONDS)
     }
 
     fun onDisplayRotationChanged() {
@@ -131,20 +132,22 @@ class PlayBaxCameraEngine(
                 provider.unbindAll()
 
                 val selector = CameraLensHelper.buildCameraSelector(provider, desiredLens)
-                val preview = Preview.Builder()
-                    .setTargetRotation(currentTargetRotation)
-                    .build()
-                    .also { it.setSurfaceProvider(previewView.surfaceProvider) }
-                previewUseCase = preview
-
                 val resSelector = ResolutionSelector.Builder()
+                    .setAspectRatioStrategy(AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY)
                     .setResolutionStrategy(
                         ResolutionStrategy(
-                            Size(1280, 960),
+                            Size(1920, 1080),
                             ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
                         )
                     )
                     .build()
+
+                val preview = Preview.Builder()
+                    .setResolutionSelector(resSelector)
+                    .setTargetRotation(currentTargetRotation)
+                    .build()
+                    .also { it.setSurfaceProvider(previewView.surfaceProvider) }
+                previewUseCase = preview
 
                 val imageAnalysis = ImageAnalysis.Builder()
                     .setResolutionSelector(resSelector)
@@ -158,7 +161,7 @@ class PlayBaxCameraEngine(
                         val nowMs = SystemClock.elapsedRealtime()
                         if (isStageRunning && !isFrozen && ringBuffer.shouldAcceptFrame(nowMs)) {
                             val c = PlayBaxPreferences.getScreenCount(context)
-                            val maxDim = if (c == 1) 960 else 768
+                            val maxDim = if (c == 1) 1280 else 960
                             val jpeg = YuvFrameConverter.imageProxyToUprightJpeg(
                                 image = imageProxy,
                                 mirrorHorizontally = isFrontMirror,
@@ -186,7 +189,7 @@ class PlayBaxCameraEngine(
                     provider.bindToLifecycle(lifecycleOwner, fallback, preview, imageAnalysis)
                 }
 
-                CameraLensHelper.applyZoomForPreference(activeCamera, desiredLens)
+                CameraLensHelper.applyHardwareVideoOptimizations(activeCamera, desiredLens)
             } catch (_: Exception) {
             }
         }, ContextCompat.getMainExecutor(context))
