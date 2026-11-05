@@ -4,12 +4,14 @@ import android.Manifest
 import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.provider.MediaStore
 import androidx.camera.core.Camera
+import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -29,10 +31,11 @@ import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Decoupled CameraX engine with PreviewView hardware anchor, background ImageAnalysis +
- * PreviewView fallback frame capture, background 24fps multi-screen decoder, and MP4 Recorder.
+ * Decoupled CameraX engine binding 2-stream Preview + ImageAnalysis by default (100% off main thread)
+ * and adding VideoCapture only when MP4 recording is enabled, with backpressure-guarded 20fps playback.
  */
 class PlayBaxCameraEngine(
     private val context: Context,
@@ -47,75 +50,42 @@ class PlayBaxCameraEngine(
     private val mainHandler = Handler(Looper.getMainLooper())
     private val analysisExecutor = Executors.newSingleThreadExecutor()
     private val playbackExecutor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
+    private val isUiUpdatePending = AtomicBoolean(false)
 
     private var cameraProvider: ProcessCameraProvider? = null
     private var activeCamera: Camera? = null
     private var videoCapture: VideoCapture<Recorder>? = null
     private var activeRecording: Recording? = null
-    private var boundLensMode: Int = -1
 
     @Volatile var isStageRunning: Boolean = false
     @Volatile var isFrozen: Boolean = false
 
     private val slotPacketIds = LongArray(3) { -1L }
-    private val slotBitmaps = arrayOfNulls<android.graphics.Bitmap>(3)
-
-    private val previewFallbackRunnable = object : Runnable {
-        override fun run() {
-            if (isStageRunning && !isFrozen) {
-                val nowMs = SystemClock.elapsedRealtime()
-                if (nowMs - ringBuffer.getLastPushedTimestampMs() > 90L) {
-                    val bmp = try { previewView.bitmap } catch (_: Exception) { null }
-                    if (bmp != null) {
-                        val delaySec = PlayBaxPreferences.getDelaySeconds(context)
-                        val count = PlayBaxPreferences.getScreenCount(context)
-                        val maxMs = count * delaySec * 1000L
-                        analysisExecutor.execute {
-                            val jpeg = YuvFrameConverter.bitmapToJpegBytes(bmp, 0, false)
-                            if (!bmp.isRecycled) bmp.recycle()
-                            if (jpeg != null) {
-                                ringBuffer.pushFrame(jpeg, SystemClock.elapsedRealtime(), maxMs)
-                            }
-                        }
-                    }
-                }
-            }
-            if (isStageRunning) {
-                mainHandler.postDelayed(this, 60L)
-            }
-        }
-    }
+    private val slotBitmaps = arrayOfNulls<Bitmap>(3)
 
     init {
-        playbackExecutor.scheduleAtFixedRate({ tickBackgroundPlayback() }, 45L, 42L, TimeUnit.MILLISECONDS)
+        playbackExecutor.scheduleAtFixedRate({ tickBackgroundPlayback() }, 60L, 50L, TimeUnit.MILLISECONDS)
     }
 
-    fun startCameraSession(forceRebind: Boolean = false) {
-        isStageRunning = true
-        mainHandler.removeCallbacks(previewFallbackRunnable)
-        mainHandler.postDelayed(previewFallbackRunnable, 120L)
-
+    fun startCameraSession(enableVideoCapture: Boolean = PlayBaxPreferences.isRecordEnabled(context)) {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
             != PackageManager.PERMISSION_GRANTED
         ) return
 
+        isStageRunning = true
         val desiredLens = PlayBaxPreferences.getLensMode(context)
-        if (!forceRebind && activeCamera != null && boundLensMode == desiredLens) {
-            CameraLensHelper.applyZoomForPreference(activeCamera, desiredLens)
-            return
-        }
-
+        val isFrontMirror = (desiredLens == PlayBaxPreferences.LENS_FRONT_MIRROR)
         val future = ProcessCameraProvider.getInstance(context)
+
         future.addListener({
+            if (!isStageRunning) return@addListener
             try {
                 val provider = future.get()
                 cameraProvider = provider
                 stopRecordingIfActive(silent = true)
                 provider.unbindAll()
 
-                val selector = CameraLensHelper.buildCameraSelector(context, provider, desiredLens)
-                val isFrontMirror = (desiredLens == PlayBaxPreferences.LENS_FRONT_MIRROR)
-
+                val selector = CameraLensHelper.buildCameraSelector(provider, desiredLens)
                 val preview = Preview.Builder().build().also {
                     it.setSurfaceProvider(previewView.surfaceProvider)
                 }
@@ -129,39 +99,51 @@ class PlayBaxCameraEngine(
                         val nowMs = SystemClock.elapsedRealtime()
                         if (isStageRunning && !isFrozen && ringBuffer.shouldAcceptFrame(nowMs)) {
                             val jpeg = YuvFrameConverter.imageProxyToUprightJpeg(imageProxy, isFrontMirror)
-                            if (jpeg != null) {
+                            if (jpeg != null && jpeg.isNotEmpty()) {
                                 val d = PlayBaxPreferences.getDelaySeconds(context)
                                 val c = PlayBaxPreferences.getScreenCount(context)
                                 ringBuffer.pushFrame(jpeg, nowMs, c * d * 1000L)
                             }
                         }
+                    } catch (_: Exception) {
                     } finally {
                         imageProxy.close()
                     }
                 }
 
-                val recorder = Recorder.Builder()
-                    .setQualitySelector(QualitySelector.from(Quality.HD))
-                    .build()
-                val videoCap = VideoCapture.withOutput(recorder)
-                videoCapture = videoCap
+                if (enableVideoCapture) {
+                    val recorder = Recorder.Builder()
+                        .setQualitySelector(QualitySelector.from(Quality.HD))
+                        .build()
+                    val videoCap = VideoCapture.withOutput(recorder)
+                    videoCapture = videoCap
 
-                activeCamera = try {
-                    provider.bindToLifecycle(lifecycleOwner, selector, preview, imageAnalysis, videoCap)
-                } catch (_: Exception) {
-                    try {
-                        provider.bindToLifecycle(lifecycleOwner, selector, preview, videoCap)
+                    activeCamera = try {
+                        provider.bindToLifecycle(lifecycleOwner, selector, preview, imageAnalysis, videoCap)
                     } catch (_: Exception) {
-                        videoCapture = null
+                        try {
+                            provider.bindToLifecycle(lifecycleOwner, selector, imageAnalysis, videoCap)
+                        } catch (_: Exception) {
+                            videoCapture = null
+                            provider.bindToLifecycle(lifecycleOwner, selector, preview, imageAnalysis)
+                        }
+                    }
+                } else {
+                    videoCapture = null
+                    activeCamera = try {
                         provider.bindToLifecycle(lifecycleOwner, selector, preview, imageAnalysis)
+                    } catch (_: Exception) {
+                        val fallback = if (isFrontMirror) {
+                            CameraSelector.DEFAULT_FRONT_CAMERA
+                        } else {
+                            CameraSelector.DEFAULT_BACK_CAMERA
+                        }
+                        provider.bindToLifecycle(lifecycleOwner, fallback, preview, imageAnalysis)
                     }
                 }
 
-                boundLensMode = desiredLens
+                // Single-shot zoom ratio application (no recursive LiveData observer)
                 CameraLensHelper.applyZoomForPreference(activeCamera, desiredLens)
-                activeCamera?.cameraInfo?.zoomState?.observe(lifecycleOwner) {
-                    CameraLensHelper.applyZoomForPreference(activeCamera, desiredLens)
-                }
             } catch (_: Exception) {
             }
         }, ContextCompat.getMainExecutor(context))
@@ -169,6 +151,8 @@ class PlayBaxCameraEngine(
 
     private fun tickBackgroundPlayback() {
         if (!isStageRunning || isFrozen) return
+        if (!isUiUpdatePending.compareAndSet(false, true)) return
+
         try {
             val delaySec = PlayBaxPreferences.getDelaySeconds(context)
             val screenCount = PlayBaxPreferences.getScreenCount(context)
@@ -188,14 +172,32 @@ class PlayBaxCameraEngine(
                 results.add(res)
             }
             mainHandler.post {
-                onFramesDecoded(results, delaySec)
+                try {
+                    if (isStageRunning) {
+                        onFramesDecoded(results, delaySec)
+                    }
+                } finally {
+                    isUiUpdatePending.set(false)
+                }
             }
         } catch (_: Exception) {
+            isUiUpdatePending.set(false)
         }
     }
 
     fun startRecordingIfNeeded() {
         if (activeRecording != null) return
+        if (videoCapture == null) {
+            // Rebind with VideoCapture enabled and start recording once bound
+            startCameraSession(enableVideoCapture = true)
+            mainHandler.postDelayed({ startRecordingInternal() }, 550L)
+            return
+        }
+        startRecordingInternal()
+    }
+
+    private fun startRecordingInternal() {
+        if (activeRecording != null || !isStageRunning) return
         val capture = videoCapture ?: return
         try {
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
@@ -242,13 +244,13 @@ class PlayBaxCameraEngine(
 
     fun stopStageSession() {
         isStageRunning = false
-        mainHandler.removeCallbacks(previewFallbackRunnable)
+        isUiUpdatePending.set(false)
         stopRecordingIfActive(silent = true)
+        try { cameraProvider?.unbindAll() } catch (_: Exception) {}
     }
 
     fun shutdown() {
         stopStageSession()
-        try { cameraProvider?.unbindAll() } catch (_: Exception) {}
         playbackExecutor.shutdownNow()
         analysisExecutor.shutdownNow()
     }

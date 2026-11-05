@@ -30,13 +30,10 @@ class MainActivityViews(
     val applyLaunchBtn: TextView,
     val cameraStageContainer: FrameLayout,
     val multiScreenStage: PlayBaxMultiScreenStage,
-    val cameraTopBar: LinearLayout,
-    val backToHomeBtn: TextView,
-    val cameraStatusPill: TextView,
-    val cameraBottomBar: LinearLayout,
-    val freezeToggleBtn: TextView,
+    val lowVisControlPill: LinearLayout,
     val recordActionBtn: TextView,
-    val fullscreenToggleBtn: TextView
+    val freezeToggleBtn: TextView,
+    val stopToHomeBtn: TextView
 )
 
 object MainActivityUiBuilder {
@@ -58,7 +55,6 @@ object MainActivityUiBuilder {
             setPadding(dp(context, 18), dp(context, 46), dp(context, 18), dp(context, 28))
         }
 
-        // Top Bar: Brand Header + Soft Status Pill + Profile Badge
         val topHeader = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -90,7 +86,6 @@ object MainActivityUiBuilder {
         topHeader.addView(badgeCircle)
         homeCol.addView(topHeader)
 
-        // Hero Bento Row: Left Circular Delay Ring Gauge + Right 3 Pastel Tiles
         val heroBentoRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -123,7 +118,6 @@ object MainActivityUiBuilder {
         heroBentoRow.addView(rightStack)
         homeCol.addView(heroBentoRow)
 
-        // Second Bento Row: 2 Side-by-Side Pastel Cards (Camera Lens & Cascade Readout)
         val secondBentoRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 14) }
@@ -138,7 +132,6 @@ object MainActivityUiBuilder {
         secondBentoRow.addView(cascadeTile.card, weightLp(context, 1f, 0))
         homeCol.addView(secondBentoRow)
 
-        // Delay Slider & Quick Presets Card (#FFFFFF clean Google card)
         val sliderSection = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(context, 16), dp(context, 14), dp(context, 16), dp(context, 14))
@@ -184,7 +177,6 @@ object MainActivityUiBuilder {
         sliderSection.addView(presetsRow)
         homeCol.addView(sliderSection)
 
-        // Primary Action Row (Fitbit '+ Log' / 'Start' + 'Ask Coach' Blue Pill Style)
         val actionRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -200,62 +192,62 @@ object MainActivityUiBuilder {
         root.addView(homeScroll, FrameLayout.LayoutParams(-1, -1))
 
         // =====================================================================
-        // 2. Active Camera & Multi-Screen Delayed Playback Display (In Action)
+        // 2. Distraction-Free Live Delayed Playback Screen
+        //    (Pure Video + Single Low-Visibility Record / Pause / Stop Pill)
         // =====================================================================
         val cameraStageContainer = FrameLayout(context).apply {
             visibility = View.GONE
-            setBackgroundColor(Color.parseColor("#111316"))
+            setBackgroundColor(Color.BLACK)
         }
         cameraStageContainer.addView(stage, FrameLayout.LayoutParams(-1, -1))
 
-        val cameraTopBar = LinearLayout(context).apply {
+        val lowVisControlPill = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(context, 14), dp(context, 44), dp(context, 14), dp(context, 10))
+            alpha = 0.36f
+            setPadding(dp(context, 8), dp(context, 5), dp(context, 8), dp(context, 5))
+            background = GoogleStyleWidgets.roundedDrawable(context, "#66000000", 999, "#33FFFFFF")
         }
-        val backToHomeBtn = createPillButton(context, "←  Home Settings", "#F2FFFFFF", "#1F1F1F", 40).apply {
-            setPadding(dp(context, 16), 0, dp(context, 16), 0)
-            layoutParams = LinearLayout.LayoutParams(-2, dp(context, 40))
-        }
-        val cameraStatusPill = TextView(context).apply {
-            text = "● LIVE +5s"
-            setTextColor(Color.parseColor("#1F1F1F"))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setPadding(dp(context, 14), dp(context, 9), dp(context, 14), dp(context, 9))
-            background = GoogleStyleWidgets.roundedDrawable(context, "#E6A8F5EC", 999)
-        }
-        cameraTopBar.addView(backToHomeBtn)
-        cameraTopBar.addView(View(context).apply { layoutParams = LinearLayout.LayoutParams(0, 1, 1f) })
-        cameraTopBar.addView(cameraStatusPill)
-        cameraStageContainer.addView(cameraTopBar, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
+        val recordActionBtn = createLowVisControlItem(context, "● Rec")
+        val freezeToggleBtn = createLowVisControlItem(context, "⏸ Pause")
+        val stopToHomeBtn = createLowVisControlItem(context, "■ Stop")
 
-        val cameraBottomBar = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(context, 14), dp(context, 10), dp(context, 14), dp(context, 10))
-            background = GoogleStyleWidgets.roundedDrawable(context, "#F2FFFFFF", 999, "#D3E3FD")
-        }
-        val freezeToggleBtn = createPillButton(context, "⏸ Freeze", "#E6EAEE", "#1F1F1F", 42)
-        val recordActionBtn = createPillButton(context, "● Record MP4", "#0B57D0", "#FFFFFF", 42)
-        val fullscreenToggleBtn = createPillButton(context, "⛶ Full", "#CBE6FF", "#001D35", 42)
-        cameraBottomBar.addView(freezeToggleBtn, weightLp(context, 0.9f, 8, heightDp = 42))
-        cameraBottomBar.addView(recordActionBtn, weightLp(context, 1.25f, 8, heightDp = 42))
-        cameraBottomBar.addView(fullscreenToggleBtn, weightLp(context, 0.75f, 0, heightDp = 42))
+        lowVisControlPill.addView(recordActionBtn)
+        lowVisControlPill.addView(createHairlineDivider(context))
+        lowVisControlPill.addView(freezeToggleBtn)
+        lowVisControlPill.addView(createHairlineDivider(context))
+        lowVisControlPill.addView(stopToHomeBtn)
 
-        val bottomBarLp = FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply {
-            leftMargin = dp(context, 16); rightMargin = dp(context, 16); bottomMargin = dp(context, 22)
+        val pillLp = FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
+            bottomMargin = dp(context, 20)
         }
-        cameraStageContainer.addView(cameraBottomBar, bottomBarLp)
+        cameraStageContainer.addView(lowVisControlPill, pillLp)
         root.addView(cameraStageContainer, FrameLayout.LayoutParams(-1, -1))
 
         return MainActivityViews(
             root, homeScroll, topModePill, delayRingGauge, screensTile, layoutTile,
             captureTile, lensTile, cascadeTile, minusBtn, delaySlider, plusBtn,
             presetButtons, resetDefaultsBtn, applyLaunchBtn, cameraStageContainer,
-            stage, cameraTopBar, backToHomeBtn, cameraStatusPill, cameraBottomBar,
-            freezeToggleBtn, recordActionBtn, fullscreenToggleBtn
+            stage, lowVisControlPill, recordActionBtn, freezeToggleBtn, stopToHomeBtn
         )
+    }
+
+    private fun createLowVisControlItem(context: Context, label: String): TextView {
+        return TextView(context).apply {
+            text = label
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            setPadding(dp(context, 12), dp(context, 6), dp(context, 12), dp(context, 6))
+        }
+    }
+
+    private fun createHairlineDivider(context: Context): View {
+        return View(context).apply {
+            setBackgroundColor(Color.parseColor("#4DFFFFFF"))
+            layoutParams = LinearLayout.LayoutParams(dp(context, 1), dp(context, 14))
+        }
     }
 
     private fun createPillButton(

@@ -26,7 +26,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var cameraEngine: PlayBaxCameraEngine
 
     private var isInCameraStage = false
-    private var isOverlayHidden = false
     private var isVideoRecordingNow = false
     private var pendingLaunchAfterPermission = false
     private var lastAppliedScreenCount = -1
@@ -53,14 +52,14 @@ class MainActivity : AppCompatActivity() {
         setContentView(ui.rootFrame)
 
         cameraEngine = PlayBaxCameraEngine(
-            context = this, lifecycleOwner = this, previewView = stage.previewView, ringBuffer = ringBuffer,
-            onFramesDecoded = { results, delaySec ->
+            context = this,
+            lifecycleOwner = this,
+            previewView = stage.previewView,
+            ringBuffer = ringBuffer,
+            onFramesDecoded = { results, _ ->
                 if (!isInCameraStage) return@PlayBaxCameraEngine
                 for (i in results.indices) {
-                    val res = results[i]
-                    ui.multiScreenStage.panels[i].updateFrameState(
-                        res.bitmap, (i + 1) * delaySec, res.isWarmingUp, res.remainingWarmupSeconds, res.bufferFillProgress
-                    )
+                    ui.multiScreenStage.panels[i].updateFrameState(results[i].bitmap)
                 }
             },
             onStatusToast = { msg -> Toast.makeText(this, msg, Toast.LENGTH_SHORT).show() },
@@ -143,11 +142,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun wireCameraControls() {
-        ui.backToHomeBtn.setOnClickListener { returnToHomeSettings() }
-        ui.freezeToggleBtn.setOnClickListener {
-            cameraEngine.isFrozen = !cameraEngine.isFrozen
-            syncUiState()
-        }
         ui.recordActionBtn.setOnClickListener {
             if (isVideoRecordingNow) cameraEngine.stopRecordingIfActive()
             else {
@@ -156,36 +150,31 @@ class MainActivity : AppCompatActivity() {
             }
             syncUiState()
         }
-        ui.fullscreenToggleBtn.setOnClickListener {
-            isOverlayHidden = true
+        ui.freezeToggleBtn.setOnClickListener {
+            cameraEngine.isFrozen = !cameraEngine.isFrozen
             syncUiState()
         }
-        ui.multiScreenStage.panels.forEach { panel ->
-            panel.setOnClickListener {
-                isOverlayHidden = !isOverlayHidden
-                syncUiState()
-            }
-        }
+        ui.stopToHomeBtn.setOnClickListener { returnToHomeSettings() }
     }
 
     private fun enterCameraStage() {
         isInCameraStage = true
-        isOverlayHidden = false
         cameraEngine.isFrozen = false
         ringBuffer.clear()
+        ui.multiScreenStage.clearPanelBitmaps()
         syncUiState()
-        cameraEngine.startCameraSession(forceRebind = true)
+        cameraEngine.startCameraSession()
         if (PlayBaxPreferences.isRecordEnabled(this)) {
-            ui.rootFrame.postDelayed({ if (isInCameraStage) cameraEngine.startRecordingIfNeeded() }, 600L)
+            ui.rootFrame.postDelayed({ if (isInCameraStage) cameraEngine.startRecordingIfNeeded() }, 650L)
         }
     }
 
     private fun returnToHomeSettings() {
         isInCameraStage = false
-        isOverlayHidden = false
         cameraEngine.isFrozen = false
         cameraEngine.stopStageSession()
         ringBuffer.clear()
+        ui.multiScreenStage.clearPanelBitmaps()
         syncUiState()
     }
 
@@ -238,21 +227,9 @@ class MainActivity : AppCompatActivity() {
         ui.cameraStageContainer.visibility = if (isInCameraStage) View.VISIBLE else View.GONE
 
         if (isInCameraStage) {
-            ui.cameraTopBar.visibility = if (isOverlayHidden) View.GONE else View.VISIBLE
-            ui.cameraBottomBar.visibility = if (isOverlayHidden) View.GONE else View.VISIBLE
-            ui.freezeToggleBtn.text = if (cameraEngine.isFrozen) "▶ Resume" else "⏸ Freeze"
-
-            if (isVideoRecordingNow) {
-                ui.cameraStatusPill.text = "● REC ($cascadeStr)"
-                ui.cameraStatusPill.background = GoogleStyleWidgets.roundedDrawable(this, "#FFDAD6", 999)
-                ui.recordActionBtn.text = "■ Stop Rec"
-                ui.recordActionBtn.background = GoogleStyleWidgets.roundedDrawable(this, "#B3261E", 999)
-            } else {
-                ui.cameraStatusPill.text = if (cameraEngine.isFrozen) "⏸ FROZEN ($cascadeStr)" else "● LIVE ($cascadeStr)"
-                ui.cameraStatusPill.background = GoogleStyleWidgets.roundedDrawable(this, "#E6A8F5EC", 999)
-                ui.recordActionBtn.text = "● Record MP4"
-                ui.recordActionBtn.background = GoogleStyleWidgets.roundedDrawable(this, "#0B57D0", 999)
-            }
+            ui.freezeToggleBtn.text = if (cameraEngine.isFrozen) "▶ Play" else "⏸ Pause"
+            ui.recordActionBtn.text = if (isVideoRecordingNow) "● Rec On" else "● Rec"
+            ui.recordActionBtn.setTextColor(Color.parseColor(if (isVideoRecordingNow) "#FF8A80" else "#FFFFFF"))
         }
     }
 
@@ -264,7 +241,9 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         syncUiState()
-        if (isInCameraStage && hasCameraPermission()) cameraEngine.startCameraSession()
+        if (isInCameraStage && hasCameraPermission() && !cameraEngine.isStageRunning) {
+            cameraEngine.startCameraSession()
+        }
     }
 
     override fun onPause() {
