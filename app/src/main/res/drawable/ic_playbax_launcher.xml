@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+
+    <!-- Frameless In-App Brand Emblem matching ic_playbax_launcher_fg -->
+    <path
+        android:pathData="M12,3 L30,3 L42,15 L42,40 C42,42.8 39.8,45 37,45 L12,45 C9.2,45 7,42.8 7,40 L7,8 C7,5.2 9.2,3 12,3 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="7"
+                android:startY="3"
+                android:endX="42"
+                android:endY="45">
+                <item android:offset="0.0" android:color="#1A73E8" />
+                <item android:offset="0.48" android:color="#4285F4" />
+                <item android:offset="0.80" android:color="#669DF6" />
+                <item android:offset="1.0" android:color="#A8C7FA" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <path
+        android:pathData="M12,3 L30,3 L42,15 L42,40 C42,42.8 39.8,45 37,45 L12,45 C9.2,45 7,42.8 7,40 L7,8 C7,5.2 9.2,3 12,3 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="37"
+                android:centerY="40"
+                android:gradientRadius="24">
+                <item android:offset="0.0" android:color="#99C2E7FF" />
+                <item android:offset="1.0" android:color="#004285F4" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <path
+        android:pathData="M30,3 L42,15 L34,15 C31.8,15 30,13.2 30,11 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="30"
+                android:startY="3"
+                android:endX="42"
+                android:endY="15">
+                <item android:offset="0.0" android:color="#174EA6" />
+                <item android:offset="1.0" android:color="#1967D2" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Soft Tonal Delayed-Echo Bar -->
+    <path
+        android:fillColor="#CCE8F0FE"
+        android:pathData="M15,20 C16.1,20 17,20.9 17,22 L17,33 C17,34.1 16.1,35 15,35 C13.9,35 13,34.1 13,33 L13,22 C13,20.9 13.9,20 15,20 Z" />
+
+    <!-- Crisp White Soft-Rounded Play Prism -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M21,19.8 C21,18.3 22.7,17.4 24.0,18.2 L34.2,25.0 C35.4,25.8 35.4,27.6 34.2,28.4 L24.0,35.2 C22.7,36.0 21,35.1 21,33.6 Z" />
+
+    <!-- Subtle Soft Live Delay Dot -->
+    <path
+        android:fillColor="#E8F0FE"
+        android:pathData="M15,12 A2.0,2.0 0 1,1 14.99,12 Z" />
+</vector>
