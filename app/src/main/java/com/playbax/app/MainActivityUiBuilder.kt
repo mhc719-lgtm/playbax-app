@@ -77,10 +77,10 @@ object MainActivityUiBuilder {
             text = "PB"
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f)
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             background = GoogleStyleWidgets.roundedDrawable(context, GoogleStyleWidgets.BRAND_CRIMSON, 999, "#FF6D00")
-            layoutParams = LinearLayout.LayoutParams(dp(context, 36), dp(context, 36)).apply { leftMargin = dp(context, 10) }
+            layoutParams = LinearLayout.LayoutParams(dp(context, 38), dp(context, 38)).apply { leftMargin = dp(context, 10) }
         }
         topHeader.addView(GoogleStyleWidgets.createBrandHeaderRow(context))
         topHeader.addView(View(context).apply { layoutParams = LinearLayout.LayoutParams(0, 1, 1f) })
@@ -181,17 +181,22 @@ object MainActivityUiBuilder {
         homeScroll.addView(homeCol)
         homeContainer.addView(homeScroll)
 
-        // Google Health Style Bottom Navigation Bar (Top 64x32dp Icon Pill + Bottom 12sp Label)
+        // Google Health Style Bottom Navigation Bar (Tonal Background + Top 64x32dp Icon Pill + Bottom 12sp Label)
+        val navDivider = View(context).apply {
+            setBackgroundColor(Color.parseColor("#E6D6D0"))
+            layoutParams = LinearLayout.LayoutParams(-1, dp(context, 1))
+        }
         val bottomNavBar = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(context, 24), dp(context, 6), dp(context, 24), dp(context, 10))
-            background = GoogleStyleWidgets.roundedDrawable(context, "#FFFFFF", 0)
+            setPadding(dp(context, 24), dp(context, 8), dp(context, 24), dp(context, 10))
+            setBackgroundColor(Color.parseColor(GoogleStyleWidgets.BOTTOM_NAV_BG))
         }
-        val navSetupTab = GoogleStyleWidgets.createHealthBottomNavTab(context, "⚙", "Setup")
-        val navClipsTab = GoogleStyleWidgets.createHealthBottomNavTab(context, "🎬", "Saved Clips")
+        val navSetupTab = GoogleStyleWidgets.createHealthBottomNavTab(context, R.drawable.ic_nav_home, "Home")
+        val navClipsTab = GoogleStyleWidgets.createHealthBottomNavTab(context, R.drawable.ic_nav_clips, "Saved Clips")
         bottomNavBar.addView(navSetupTab.rootTab, LinearLayout.LayoutParams(0, -2, 1f))
         bottomNavBar.addView(navClipsTab.rootTab, LinearLayout.LayoutParams(0, -2, 1f))
+        homeContainer.addView(navDivider)
         homeContainer.addView(bottomNavBar, LinearLayout.LayoutParams(-1, -2))
         root.addView(homeContainer, FrameLayout.LayoutParams(-1, -1))
 

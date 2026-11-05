@@ -16,6 +16,7 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.View
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupMenu
@@ -95,28 +96,31 @@ class DelayRingGaugeView(context: Context) : View(context) {
 }
 
 class PastelBentoTileRefs(val card: LinearLayout, val valueText: TextView, val subtitleText: TextView)
-class HealthBottomNavTabRefs(val rootTab: LinearLayout, val iconPill: TextView, val labelText: TextView)
+class HealthBottomNavTabRefs(val rootTab: LinearLayout, val iconPill: FrameLayout, val iconView: ImageView, val labelText: TextView)
 
 object GoogleStyleWidgets {
 
     const val LIGHT_BG = "#FFFDFC"
+    const val BOTTOM_NAV_BG = "#F4EAE6"
     const val LIGHT_SURFACE_PILL = "#EEF1F6"
     const val TEXT_DARK = "#1B1B1F"
     const val TEXT_MUTED = "#4E525A"
     const val BRAND_ORANGE_PRIMARY = "#FF3D00"
     const val BRAND_CRIMSON = "#FF1744"
     const val SOFT_PEACH_PILL = "#FFE0D6"
+    const val ACTIVE_NAV_PILL = "#FFCCBC"
 
     fun createBrandHeaderRow(context: Context): LinearLayout = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
         val logo = ImageView(context).apply {
             setImageResource(R.drawable.ic_playbax_launcher)
-            layoutParams = LinearLayout.LayoutParams(dp(context, 30), dp(context, 30)).apply { rightMargin = dp(context, 10) }
+            layoutParams = LinearLayout.LayoutParams(dp(context, 38), dp(context, 38)).apply { rightMargin = dp(context, 11) }
         }
         val title = TextView(context).apply {
             text = "PlayBax"; setTextColor(Color.parseColor(TEXT_DARK))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 21f)
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 25f)
+            letterSpacing = -0.02f
+            typeface = Typeface.create("sans-serif-black", Typeface.BOLD)
         }
         addView(logo); addView(title)
     }
@@ -163,27 +167,30 @@ object GoogleStyleWidgets {
         return PastelBentoTileRefs(card, valueTv, subTv)
     }
 
-    fun createHealthBottomNavTab(context: Context, iconSymbol: String, label: String): HealthBottomNavTabRefs {
+    fun createHealthBottomNavTab(context: Context, iconResId: Int, label: String): HealthBottomNavTabRefs {
         val rootTab = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER
             setPadding(0, dp(context, 4), 0, dp(context, 4))
         }
-        val iconPill = TextView(context).apply {
-            text = iconSymbol; gravity = Gravity.CENTER; setTextSize(TypedValue.COMPLEX_UNIT_SP, 17f)
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+        val iconPill = FrameLayout(context).apply {
             layoutParams = LinearLayout.LayoutParams(dp(context, 64), dp(context, 32)).apply { bottomMargin = dp(context, 3) }
         }
+        val iconView = ImageView(context).apply {
+            setImageResource(iconResId)
+            layoutParams = FrameLayout.LayoutParams(dp(context, 22), dp(context, 22), Gravity.CENTER)
+        }
+        iconPill.addView(iconView)
         val labelText = TextView(context).apply {
             text = label; gravity = Gravity.CENTER; setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         }
         rootTab.addView(iconPill); rootTab.addView(labelText)
-        return HealthBottomNavTabRefs(rootTab, iconPill, labelText)
+        return HealthBottomNavTabRefs(rootTab, iconPill, iconView, labelText)
     }
 
     fun styleHealthNavTab(context: Context, tab: HealthBottomNavTabRefs, active: Boolean) {
-        tab.iconPill.background = roundedDrawable(context, if (active) SOFT_PEACH_PILL else "#00000000", 999)
-        tab.iconPill.setTextColor(Color.parseColor(if (active) BRAND_ORANGE_PRIMARY else TEXT_MUTED))
+        tab.iconPill.background = roundedDrawable(context, if (active) ACTIVE_NAV_PILL else "#00000000", 999)
+        tab.iconView.setColorFilter(Color.parseColor(if (active) BRAND_ORANGE_PRIMARY else TEXT_MUTED))
         tab.labelText.setTextColor(Color.parseColor(if (active) BRAND_ORANGE_PRIMARY else TEXT_MUTED))
         tab.labelText.typeface = Typeface.create("sans-serif-medium", if (active) Typeface.BOLD else Typeface.NORMAL)
     }
