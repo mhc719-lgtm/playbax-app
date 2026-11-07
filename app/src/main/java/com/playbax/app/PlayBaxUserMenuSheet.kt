@@ -39,11 +39,15 @@ object PlayBaxUserMenuSheet {
             setPadding(dp(context, 18), dp(context, 42), dp(context, 18), dp(context, 32))
         }
 
-        // Top-right close "✕" row
+        val appVersion = try {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.1.4"
+        } catch (_: Exception) { "1.1.4" }
+
+        // Top Branding Header + Right Close "✕" Row
         val closeRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.END
-            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 8) }
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 14) }
         }
         val closeBtn = TextView(context).apply {
             text = "✕"
@@ -51,12 +55,17 @@ object PlayBaxUserMenuSheet {
             setTextColor(Color.parseColor(ICON_TINT))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
             setPadding(dp(context, 12), dp(context, 6), dp(context, 12), dp(context, 6))
-            setOnClickListener { onClose() }
+            setOnClickListener {
+                GoogleStyleWidgets.performClickHaptic(this)
+                onClose()
+            }
         }
+        closeRow.addView(GoogleStyleWidgets.createBrandHeaderRow(context))
+        closeRow.addView(View(context).apply { layoutParams = LinearLayout.LayoutParams(0, 1, 1f) })
         closeRow.addView(closeBtn)
         col.addView(closeRow)
 
-        // Top Profile / App Identity Card (matching Screenshot 3 top card)
+        // Top Profile / App Identity Card
         val profileCard = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -84,7 +93,7 @@ object PlayBaxUserMenuSheet {
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
         }
         val subTv = TextView(context).apply {
-            text = "Live Delayed Video Coach"
+            text = "Live Delayed Video Playback"
             setTextColor(Color.parseColor(ICON_TINT))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f)
             setPadding(0, dp(context, 2), 0, dp(context, 6))
@@ -158,11 +167,22 @@ object PlayBaxUserMenuSheet {
         group2.addView(createSegmentedRow(context, "💬", "Feedback") {
             showInfoDialog(
                 context,
-                "PlayBax v1.0.6",
-                "PlayBax Athletic Video Delay Coach (v1.0.6).\nThank you for testing PlayBax!"
+                "PlayBax v$appVersion",
+                "PlayBax Live Delayed Video Playback (v$appVersion).\nThank you for using PlayBax!"
             )
         })
         col.addView(group2)
+
+        val versionFooter = TextView(context).apply {
+            text = "Version $appVersion"
+            gravity = Gravity.CENTER
+            setTextColor(Color.parseColor(ICON_TINT))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            setPadding(0, dp(context, 6), 0, dp(context, 8))
+            layoutParams = LinearLayout.LayoutParams(-1, -2)
+        }
+        col.addView(versionFooter)
 
         scroll.addView(col)
         return scroll
