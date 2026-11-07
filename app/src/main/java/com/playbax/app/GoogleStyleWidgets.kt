@@ -1,7 +1,11 @@
 package com.playbax.app
 
 import android.content.Context
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
@@ -63,12 +67,60 @@ object GoogleStyleWidgets {
                 onClick(this)
             }
         }
-        val iconPill = TextView(context).apply {
-            text = iconSymbol; gravity = Gravity.CENTER
-            setTextColor(Color.parseColor(iconColorHex)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+        val iconPill = object : View(context) {
+            private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor(iconColorHex)
+                style = Paint.Style.STROKE
+                strokeWidth = dp(context, 2).toFloat() * 1.15f
+                strokeCap = Paint.Cap.ROUND
+                strokeJoin = Paint.Join.ROUND
+            }
+            private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor(iconColorHex)
+                style = Paint.Style.FILL
+            }
+            private val rect = RectF()
+            private val path = Path()
+
+            override fun onDraw(canvas: Canvas) {
+                super.onDraw(canvas)
+                val cx = width * 0.5f
+                val cy = height * 0.5f
+                val r = dp(context, 10).toFloat()
+                when (iconSymbol) {
+                    "▣" -> {
+                        rect.set(cx - r, cy - r, cx + r, cy + r)
+                        canvas.drawRoundRect(rect, dp(context, 5).toFloat(), dp(context, 5).toFloat(), strokePaint)
+                        val ir = r * 0.48f
+                        rect.set(cx - ir, cy - ir, cx + ir, cy + ir)
+                        canvas.drawRoundRect(rect, dp(context, 2).toFloat(), dp(context, 2).toFloat(), fillPaint)
+                    }
+                    "⇅" -> {
+                        val dx = r * 0.46f
+                        val topY = cy - r * 0.92f
+                        val botY = cy + r * 0.92f
+                        val aw = r * 0.38f
+                        path.reset()
+                        path.moveTo(cx - dx, botY); path.lineTo(cx - dx, topY)
+                        path.moveTo(cx - dx - aw, topY + aw); path.lineTo(cx - dx, topY); path.lineTo(cx - dx + aw, topY + aw)
+                        path.moveTo(cx + dx, topY); path.lineTo(cx + dx, botY)
+                        path.moveTo(cx + dx - aw, botY - aw); path.lineTo(cx + dx, botY); path.lineTo(cx + dx + aw, botY - aw)
+                        canvas.drawPath(path, strokePaint)
+                    }
+                    "●" -> {
+                        canvas.drawCircle(cx, cy, r * 0.96f, strokePaint)
+                        canvas.drawCircle(cx, cy, r * 0.54f, fillPaint)
+                    }
+                    else -> {
+                        canvas.drawCircle(cx, cy, r * 0.98f, strokePaint)
+                        canvas.drawCircle(cx, cy, r * 0.52f, strokePaint)
+                        canvas.drawCircle(cx, cy, r * 0.20f, fillPaint)
+                    }
+                }
+            }
+        }.apply {
             background = roundedDrawable(context, "#FFFFFF", 999)
-            layoutParams = LinearLayout.LayoutParams(dp(context, 34), dp(context, 48)).apply { rightMargin = dp(context, 10) }
+            layoutParams = LinearLayout.LayoutParams(dp(context, 38), dp(context, 48)).apply { rightMargin = dp(context, 10) }
         }
         val textCol = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL; layoutParams = LinearLayout.LayoutParams(0, -2, 1f)

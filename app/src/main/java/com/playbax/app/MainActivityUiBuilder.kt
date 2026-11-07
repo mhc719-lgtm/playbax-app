@@ -60,8 +60,8 @@ object MainActivityUiBuilder {
         }
         val badgeCircle = ImageView(context).apply {
             setImageResource(R.drawable.ic_menu_hamburger)
-            setPadding(dp(context, 8), dp(context, 8), dp(context, 8), dp(context, 8))
-            background = GoogleStyleWidgets.roundedDrawable(context, GoogleStyleWidgets.SOFT_PEACH_PILL, 999)
+            setPadding(dp(context, 6), dp(context, 6), dp(context, 6), dp(context, 6))
+            background = GoogleStyleWidgets.roundedDrawable(context, "#FFFFFF", 999)
             layoutParams = LinearLayout.LayoutParams(dp(context, 38), dp(context, 38))
         }
         topHeader.addView(GoogleStyleWidgets.createBrandHeaderRow(context))
@@ -72,10 +72,12 @@ object MainActivityUiBuilder {
         val setupBodyCol = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(-1, 0, 1f)
         }
         val clipsBodyCol = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             visibility = View.GONE
+            layoutParams = LinearLayout.LayoutParams(-1, 0, 1f)
         }
 
         // Top Centered Interactive 360° Rotary Finger Dial (1s–30s with detent clicks & haptics)
@@ -94,10 +96,10 @@ object MainActivityUiBuilder {
             layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 10) }
         }
         val screensTile = GoogleStyleWidgets.createPastelBentoTile(
-            context, "#FF9E80", "▣", "#FF3D00", "Playback screens", "1 Screen", "+5s"
+            context, "#FF8A65", "▣", "#FF3D00", "Playback screens", "1 Screen", "+5s"
         ) {}
         val layoutTile = GoogleStyleWidgets.createPastelBentoTile(
-            context, "#EEF1F6", "⇅", "#1B1B1F", "Screen layout", "Auto (Stack)", "Portrait / Landscape"
+            context, "#FFD54F", "⇅", "#E65100", "Screen layout", "Auto (Stack)", "Portrait / Landscape"
         ) {}
         bentoRow1.addView(screensTile.card, LinearLayout.LayoutParams(0, dp(context, 68), 1f).apply { rightMargin = dp(context, 5) })
         bentoRow1.addView(layoutTile.card, LinearLayout.LayoutParams(0, dp(context, 68), 1f).apply { leftMargin = dp(context, 5) })
@@ -105,28 +107,34 @@ object MainActivityUiBuilder {
 
         val bentoRow2 = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 18) }
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 12) }
         }
         val captureTile = GoogleStyleWidgets.createPastelBentoTile(
-            context, "#FCE4EC", "●", "#FF1744", "Capture mode", "Memory Only", "Unrecorded RAM"
+            context, "#FFAB91", "●", "#FF1744", "Capture mode", "Memory Only", "Unrecorded RAM"
         ) {}
         val lensTile = GoogleStyleWidgets.createPastelBentoTile(
-            context, "#FF9E80", "◎", "#FF3D00", "Camera lens", "1.0x Rear", "Tap to switch lens"
+            context, "#FFB74D", "◎", "#FF3D00", "Camera lens", "1.0x Rear", "Tap to switch lens"
         ) {}
         bentoRow2.addView(captureTile.card, LinearLayout.LayoutParams(0, dp(context, 68), 1f).apply { rightMargin = dp(context, 5) })
         bentoRow2.addView(lensTile.card, LinearLayout.LayoutParams(0, dp(context, 68), 1f).apply { leftMargin = dp(context, 5) })
         setupBodyCol.addView(bentoRow2)
 
-        // Symmetric 50% / 50% Action Buttons
+        // Flexible spacer pushes Reset & Start Camera down directly above the bottom navigation bar
+        setupBodyCol.addView(View(context).apply {
+            minimumHeight = dp(context, 14)
+            layoutParams = LinearLayout.LayoutParams(1, 0, 1f)
+        })
+
+        // Symmetric 50% / 50% Action Buttons anchored above the bottom bar
         val actionRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(-1, -2)
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 2) }
         }
         val resetDefaultsBtn = createPillButton(context, "↺  Reset", GoogleStyleWidgets.SOFT_PEACH_PILL, "#B71C1C", 52)
         val applyLaunchBtn = createPillButton(context, "▶  Start Camera", GoogleStyleWidgets.BRAND_ORANGE_PRIMARY, "#FFFFFF", 52)
-        actionRow.addView(resetDefaultsBtn, LinearLayout.LayoutParams(0, dp(context, 52), 1f).apply { rightMargin = dp(context, 5) })
-        actionRow.addView(applyLaunchBtn, LinearLayout.LayoutParams(0, dp(context, 52), 1f).apply { leftMargin = dp(context, 5) })
+        actionRow.addView(resetDefaultsBtn, LinearLayout.LayoutParams(0, dp(context, 52), 1f).apply { rightMargin = dp(context, 7) })
+        actionRow.addView(applyLaunchBtn, LinearLayout.LayoutParams(0, dp(context, 52), 1f).apply { leftMargin = dp(context, 7) })
         setupBodyCol.addView(actionRow)
 
         homeCol.addView(setupBodyCol)
