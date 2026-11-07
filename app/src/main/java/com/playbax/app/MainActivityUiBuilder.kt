@@ -7,6 +7,7 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -14,8 +15,7 @@ import android.widget.TextView
 class MainActivityViews(
     val rootFrame: FrameLayout,
     val homeContainer: LinearLayout,
-    val topModePill: TextView,
-    val badgeCircle: TextView,
+    val badgeCircle: View,
     val setupBodyCol: LinearLayout,
     val clipsBodyCol: LinearLayout,
     val delayRingGauge: DelayRingGaugeView,
@@ -58,28 +58,14 @@ object MainActivityUiBuilder {
             gravity = Gravity.CENTER_VERTICAL
             layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 14) }
         }
-        val topModePill = TextView(context).apply {
-            text = "1080p • OIS+EIS"
-            isClickable = false
-            isFocusable = false
-            setTextColor(Color.parseColor(GoogleStyleWidgets.TEXT_DARK))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
-            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-            setPadding(dp(context, 14), dp(context, 7), dp(context, 14), dp(context, 7))
-            background = GoogleStyleWidgets.roundedDrawable(context, GoogleStyleWidgets.LIGHT_SURFACE_PILL, 999)
-        }
-        val badgeCircle = TextView(context).apply {
-            text = "PB"
-            gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f)
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            background = GoogleStyleWidgets.roundedDrawable(context, GoogleStyleWidgets.BRAND_CRIMSON, 999, "#FF6D00")
-            layoutParams = LinearLayout.LayoutParams(dp(context, 38), dp(context, 38)).apply { leftMargin = dp(context, 10) }
+        val badgeCircle = ImageView(context).apply {
+            setImageResource(R.drawable.ic_menu_hamburger)
+            setColorFilter(Color.parseColor(GoogleStyleWidgets.BRAND_ORANGE_PRIMARY))
+            setPadding(dp(context, 6), dp(context, 6), dp(context, 6), dp(context, 6))
+            layoutParams = LinearLayout.LayoutParams(dp(context, 38), dp(context, 38))
         }
         topHeader.addView(GoogleStyleWidgets.createBrandHeaderRow(context))
         topHeader.addView(View(context).apply { layoutParams = LinearLayout.LayoutParams(0, 1, 1f) })
-        topHeader.addView(topModePill)
         topHeader.addView(badgeCircle)
         homeCol.addView(topHeader)
 
@@ -196,7 +182,7 @@ object MainActivityUiBuilder {
         val splashOverlay = PlayBaxSplashView(context).apply { visibility = View.GONE }
 
         return MainActivityViews(
-            root, homeContainer, topModePill, badgeCircle, setupBodyCol, clipsBodyCol,
+            root, homeContainer, badgeCircle, setupBodyCol, clipsBodyCol,
             delayRingGauge, screensTile, layoutTile, captureTile, lensTile,
             resetDefaultsBtn, applyLaunchBtn, navSetupTab, navClipsTab,
             cameraStageContainer, stage, lowVisControlPill, recordActionBtn,

@@ -130,7 +130,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun wireHomeControls() {
-        ui.badgeCircle.setOnClickListener { openUserMenu() }
+        ui.badgeCircle.setOnClickListener {
+            GoogleStyleWidgets.performClickHaptic(it)
+            openUserMenu()
+        }
         ui.navSetupTab.rootTab.setOnClickListener { isShowingClipsTab = false; syncUiState() }
         ui.navClipsTab.rootTab.setOnClickListener { openClipsTab() }
 
@@ -216,7 +219,6 @@ class MainActivity : AppCompatActivity() {
             (isInCameraStage && ::cameraEngine.isInitialized && cameraEngine.isCurrentlyLandscape())
 
         ui.delayRingGauge.updateState(delaySec, screenCount)
-        ui.topModePill.text = "1080p • OIS+EIS"
         ui.screensTile.valueText.text = if (screenCount == 1) "1 Screen" else "$screenCount Screens"
 
         val cascadeStr = when (screenCount) {

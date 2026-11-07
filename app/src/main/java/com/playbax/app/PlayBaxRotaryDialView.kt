@@ -222,11 +222,11 @@ class DelayRingGaugeView(context: Context) : View(context) {
         canvas.drawArc(arcRect, -90f, sweepDeg, false, activeArcPaint)
 
         // 3. 30 Discrete Circular Dot Interval Stops around the outer dial ring
-        val dotOrbitR = radius + stroke * 0.74f
+        val dotOrbitR = radius + stroke * 0.70f
         for (i in 1..30) {
             val isMajor = (i % 5 == 0)
             val isReached = (i <= delaySec)
-            val dotRadius = if (isMajor) size * 0.0155f else size * 0.010f
+            val dotRadius = if (isMajor) size * 0.0095f else size * 0.0062f
             tickPaint.color = when {
                 i == delaySec -> Color.parseColor("#FF1744")
                 isReached -> Color.parseColor("#FF6D00")

@@ -40,14 +40,14 @@ object PlayBaxUserMenuSheet {
         }
 
         val appVersion = try {
-            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.1.4"
-        } catch (_: Exception) { "1.1.4" }
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.1.6"
+        } catch (_: Exception) { "1.1.6" }
 
-        // Top Branding Header + Right Close "✕" Row
+        // Top Right Close "✕" Row
         val closeRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 14) }
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 8) }
         }
         val closeBtn = TextView(context).apply {
             text = "✕"
@@ -60,58 +60,26 @@ object PlayBaxUserMenuSheet {
                 onClose()
             }
         }
-        closeRow.addView(GoogleStyleWidgets.createBrandHeaderRow(context))
         closeRow.addView(View(context).apply { layoutParams = LinearLayout.LayoutParams(0, 1, 1f) })
         closeRow.addView(closeBtn)
         col.addView(closeRow)
 
-        // Top Profile / App Identity Card
+        // Top App Branding Card (PlayBax Logo/Branding + Subtitle Underneath)
         val profileCard = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(context, 18), dp(context, 18), dp(context, 18), dp(context, 18))
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(context, 20), dp(context, 18), dp(context, 20), dp(context, 18))
             background = GoogleStyleWidgets.roundedDrawable(context, "#FFFFFF", 28)
             layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 14) }
-        }
-        val avatarCircle = TextView(context).apply {
-            text = "PB"
-            gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            background = GoogleStyleWidgets.roundedDrawable(context, GoogleStyleWidgets.BRAND_CRIMSON, 999, "#FF6D00")
-            layoutParams = LinearLayout.LayoutParams(dp(context, 64), dp(context, 64)).apply { rightMargin = dp(context, 16) }
-        }
-        val profileTextCol = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
-        }
-        val nameTv = TextView(context).apply {
-            text = "PlayBax Studio"
-            setTextColor(Color.parseColor(TEXT_MAIN))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
         }
         val subTv = TextView(context).apply {
             text = "Live Delayed Video Playback"
             setTextColor(Color.parseColor(ICON_TINT))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f)
-            setPadding(0, dp(context, 2), 0, dp(context, 6))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            setPadding(dp(context, 2), dp(context, 8), 0, 0)
         }
-        val proPill = TextView(context).apply {
-            text = "1080p HD • OIS+EIS"
-            setTextColor(Color.parseColor(TEXT_MAIN))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f)
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setPadding(dp(context, 10), dp(context, 3), dp(context, 10), dp(context, 3))
-            background = GoogleStyleWidgets.roundedDrawable(context, "#FFE0D6", 999, "#FF6D00")
-            layoutParams = LinearLayout.LayoutParams(-2, -2)
-        }
-        profileTextCol.addView(nameTv)
-        profileTextCol.addView(subTv)
-        profileTextCol.addView(proPill)
-        profileCard.addView(avatarCircle)
-        profileCard.addView(profileTextCol)
+        profileCard.addView(GoogleStyleWidgets.createBrandHeaderRow(context))
+        profileCard.addView(subTv)
         col.addView(profileCard)
 
         // Standalone Action Pills
