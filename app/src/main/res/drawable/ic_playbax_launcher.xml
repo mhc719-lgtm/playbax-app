@@ -6,16 +6,16 @@
     android:viewportWidth="48"
     android:viewportHeight="48">
 
-    <!-- Circular In-App PlayBax High-Energy Electric Orange-Red Emblem -->
+    <!-- Full-size Circular In-App PlayBax High-Energy Electric Orange-Red Emblem -->
     <path
-        android:pathData="M24,2 A22,22 0 1,1 23.99,2 Z">
+        android:pathData="M24,0 A24,24 0 1,1 23.99,0 Z">
         <aapt:attr name="android:fillColor">
             <gradient
                 android:type="linear"
-                android:startX="2"
-                android:startY="2"
-                android:endX="46"
-                android:endY="46">
+                android:startX="0"
+                android:startY="0"
+                android:endX="48"
+                android:endY="48">
                 <item android:offset="0.0" android:color="#FF1744" />
                 <item android:offset="0.38" android:color="#FF3D00" />
                 <item android:offset="0.75" android:color="#FF6D00" />
@@ -25,14 +25,14 @@
     </path>
 
     <path
-        android:fillColor="#D9FFFFFF"
-        android:pathData="M24,10.5 A13.5,13.5 0 1,1 10.7,26.2 L14.1,26.2 A10.1,10.1 0 1,0 24,13.9 Z" />
+        android:fillColor="#E6FFFFFF"
+        android:pathData="M24,9.5 A14.5,14.5 0 1,1 9.7,26.4 L13.4,26.4 A10.8,10.8 0 1,0 24,13.2 Z" />
 
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M24,7.2 L24,15.5 L17.6,11.35 Z" />
+        android:pathData="M24,6.0 L24,14.8 L17.1,10.4 Z" />
 
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M20.5,18.2 C20.5,17.0 21.8,16.3 22.8,17.0 L30.4,22.0 C31.3,22.6 31.3,24.0 30.4,24.6 L22.8,29.6 C21.8,30.3 20.5,29.6 20.5,28.4 Z" />
+        android:pathData="M20.2,17.8 C20.2,16.5 21.6,15.8 22.7,16.5 L30.8,21.9 C31.8,22.5 31.8,24.0 30.8,24.7 L22.7,30.0 C21.6,30.8 20.2,30.0 20.2,28.7 Z" />
 </vector>

@@ -1,57 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!--
-      PlayBax High-Energy Electric Orange-Red Adaptive Foreground:
-      - Circular motion studio emblem inside the 66dp safe zone (center 54,54, radius 22)
-      - Kinetic Crimson (#FF1744) -> Electric Orange-Red (#FF3D00) -> Radiant Tangerine (#FF6D00) -> Solar Amber (#FF9100)
-    -->
-
+    <!-- Full-scale PlayBax white replay arc, arrow, and play glyph centered at (54,54) -->
     <path
-        android:pathData="M54,32 A22,22 0 1,1 53.99,32 Z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:type="linear"
-                android:startX="32"
-                android:startY="32"
-                android:endX="76"
-                android:endY="76">
-                <item android:offset="0.0" android:color="#FF1744" />
-                <item android:offset="0.38" android:color="#FF3D00" />
-                <item android:offset="0.75" android:color="#FF6D00" />
-                <item android:offset="1.0" android:color="#FF9100" />
-            </gradient>
-        </aapt:attr>
-    </path>
-
-    <path
-        android:pathData="M54,32 A22,22 0 1,1 53.99,32 Z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:type="radial"
-                android:centerX="45"
-                android:centerY="42"
-                android:gradientRadius="26">
-                <item android:offset="0.0" android:color="#80FFD180" />
-                <item android:offset="1.0" android:color="#00FF3D00" />
-            </gradient>
-        </aapt:attr>
-    </path>
-
-    <path
-        android:fillColor="#D9FFFFFF"
-        android:pathData="M54,40.5 A13.5,13.5 0 1,1 40.7,56.2 L44.1,56.2 A10.1,10.1 0 1,0 54,43.9 Z" />
+        android:fillColor="#E6FFFFFF"
+        android:pathData="M54,33.0 A21.0,21.0 0 1,1 33.3,57.4 L38.8,57.4 A15.6,15.6 0 1,0 54,38.4 Z" />
 
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M54,37.2 L54,45.5 L47.6,41.35 Z" />
+        android:pathData="M54,29.2 L54,42.2 L44.2,35.7 Z" />
 
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M50.5,48.2 C50.5,47.0 51.8,46.3 52.8,47.0 L60.4,52.0 C61.3,52.6 61.3,54.0 60.4,54.6 L52.8,59.6 C51.8,60.3 50.5,59.6 50.5,58.4 Z" />
+        android:pathData="M48.6,45.0 C48.6,43.15 50.6,42.1 52.1,43.15 L63.9,50.9 C65.3,51.8 65.3,54.0 63.9,54.9 L52.1,62.7 C50.6,63.8 48.6,62.7 48.6,60.8 Z" />
 </vector>
