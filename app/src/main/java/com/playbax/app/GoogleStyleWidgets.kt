@@ -89,13 +89,30 @@ object GoogleStyleWidgets {
                 val r = dp(context, 10).toFloat()
                 when (iconSymbol) {
                     "▣" -> {
-                        rect.set(cx - r, cy - r, cx + r, cy + r)
-                        canvas.drawRoundRect(rect, dp(context, 5).toFloat(), dp(context, 5).toFloat(), strokePaint)
-                        val ir = r * 0.48f
-                        rect.set(cx - ir, cy - ir, cx + ir, cy + ir)
-                        canvas.drawRoundRect(rect, dp(context, 2).toFloat(), dp(context, 2).toFloat(), fillPaint)
+                        // Cascading / Stacked Video Screens icon
+                        val sw = r * 1.45f
+                        val sh = r * 1.05f
+                        // Back cascading screen
+                        path.reset()
+                        path.moveTo(cx - sw * 0.25f, cy - sh * 0.68f)
+                        path.lineTo(cx + sw * 0.72f, cy - sh * 0.68f)
+                        path.lineTo(cx + sw * 0.72f, cy + sh * 0.35f)
+                        canvas.drawPath(path, strokePaint)
+                        // Front primary screen with play triangle
+                        rect.set(cx - sw * 0.72f, cy - sh * 0.32f, cx + sw * 0.38f, cy + sh * 0.68f)
+                        canvas.drawRoundRect(rect, dp(context, 3).toFloat(), dp(context, 3).toFloat(), strokePaint)
+                        path.reset()
+                        val px = rect.centerX()
+                        val py = rect.centerY()
+                        val pr = r * 0.28f
+                        path.moveTo(px - pr * 0.7f, py - pr)
+                        path.lineTo(px + pr, py)
+                        path.lineTo(px - pr * 0.7f, py + pr)
+                        path.close()
+                        canvas.drawPath(path, fillPaint)
                     }
                     "⇅" -> {
+                        // Dual opposing orientation arrows
                         val dx = r * 0.46f
                         val topY = cy - r * 0.92f
                         val botY = cy + r * 0.92f
@@ -108,13 +125,29 @@ object GoogleStyleWidgets {
                         canvas.drawPath(path, strokePaint)
                     }
                     "●" -> {
-                        canvas.drawCircle(cx, cy, r * 0.96f, strokePaint)
-                        canvas.drawCircle(cx, cy, r * 0.54f, fillPaint)
+                        // Video Camcorder silhouette (body + side lens cone)
+                        rect.set(cx - r * 1.02f, cy - r * 0.64f, cx + r * 0.36f, cy + r * 0.64f)
+                        canvas.drawRoundRect(rect, dp(context, 3).toFloat(), dp(context, 3).toFloat(), strokePaint)
+                        path.reset()
+                        path.moveTo(cx + r * 0.38f, cy - r * 0.24f)
+                        path.lineTo(cx + r * 1.02f, cy - r * 0.56f)
+                        path.lineTo(cx + r * 1.02f, cy + r * 0.56f)
+                        path.lineTo(cx + r * 0.38f, cy + r * 0.24f)
+                        path.close()
+                        canvas.drawPath(path, fillPaint)
+                        canvas.drawCircle(rect.centerX(), rect.centerY(), r * 0.22f, fillPaint)
                     }
                     else -> {
-                        canvas.drawCircle(cx, cy, r * 0.98f, strokePaint)
-                        canvas.drawCircle(cx, cy, r * 0.52f, strokePaint)
-                        canvas.drawCircle(cx, cy, r * 0.20f, fillPaint)
+                        // SLR Camera Body with top prism hump + center lens
+                        rect.set(cx - r * 1.02f, cy - r * 0.55f, cx + r * 1.02f, cy + r * 0.78f)
+                        canvas.drawRoundRect(rect, dp(context, 3).toFloat(), dp(context, 3).toFloat(), strokePaint)
+                        path.reset()
+                        path.moveTo(cx - r * 0.45f, cy - r * 0.55f)
+                        path.lineTo(cx - r * 0.26f, cy - r * 0.88f)
+                        path.lineTo(cx + r * 0.26f, cy - r * 0.88f)
+                        path.lineTo(cx + r * 0.45f, cy - r * 0.55f)
+                        canvas.drawPath(path, strokePaint)
+                        canvas.drawCircle(cx, cy + r * 0.12f, r * 0.36f, fillPaint)
                     }
                 }
             }

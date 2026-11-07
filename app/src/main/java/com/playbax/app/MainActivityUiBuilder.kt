@@ -96,10 +96,10 @@ object MainActivityUiBuilder {
             layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 10) }
         }
         val screensTile = GoogleStyleWidgets.createPastelBentoTile(
-            context, "#FF8A65", "▣", "#FF3D00", "Playback screens", "1 Screen", "+5s"
+            context, "#FFE4DA", "▣", "#FF3D00", "Playback screens", "1 Screen", "+5s"
         ) {}
         val layoutTile = GoogleStyleWidgets.createPastelBentoTile(
-            context, "#FFD54F", "⇅", "#E65100", "Screen layout", "Auto (Stack)", "Portrait / Landscape"
+            context, "#FFF3E6", "⇅", "#FF6D00", "Screen layout", "Auto (Stack)", "Portrait / Landscape"
         ) {}
         bentoRow1.addView(screensTile.card, LinearLayout.LayoutParams(0, dp(context, 68), 1f).apply { rightMargin = dp(context, 5) })
         bentoRow1.addView(layoutTile.card, LinearLayout.LayoutParams(0, dp(context, 68), 1f).apply { leftMargin = dp(context, 5) })
@@ -110,10 +110,10 @@ object MainActivityUiBuilder {
             layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 12) }
         }
         val captureTile = GoogleStyleWidgets.createPastelBentoTile(
-            context, "#FFAB91", "●", "#FF1744", "Capture mode", "Memory Only", "Unrecorded RAM"
+            context, "#FFF0EB", "●", "#FF1744", "Capture mode", "Memory Only", "Unrecorded RAM"
         ) {}
         val lensTile = GoogleStyleWidgets.createPastelBentoTile(
-            context, "#FFB74D", "◎", "#FF3D00", "Camera lens", "1.0x Rear", "Tap to switch lens"
+            context, "#FFEAD9", "◎", "#FF3D00", "Camera lens", "1.0x Rear", "Tap to switch lens"
         ) {}
         bentoRow2.addView(captureTile.card, LinearLayout.LayoutParams(0, dp(context, 68), 1f).apply { rightMargin = dp(context, 5) })
         bentoRow2.addView(lensTile.card, LinearLayout.LayoutParams(0, dp(context, 68), 1f).apply { leftMargin = dp(context, 5) })
