@@ -60,8 +60,8 @@ object MainActivityUiBuilder {
         }
         val badgeCircle = ImageView(context).apply {
             setImageResource(R.drawable.ic_menu_hamburger)
-            setColorFilter(Color.parseColor(GoogleStyleWidgets.BRAND_ORANGE_PRIMARY))
-            setPadding(dp(context, 6), dp(context, 6), dp(context, 6), dp(context, 6))
+            setPadding(dp(context, 8), dp(context, 8), dp(context, 8), dp(context, 8))
+            background = GoogleStyleWidgets.roundedDrawable(context, GoogleStyleWidgets.SOFT_PEACH_PILL, 999)
             layoutParams = LinearLayout.LayoutParams(dp(context, 38), dp(context, 38))
         }
         topHeader.addView(GoogleStyleWidgets.createBrandHeaderRow(context))
