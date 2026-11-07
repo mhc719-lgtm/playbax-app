@@ -257,19 +257,17 @@ class DelayRingGaugeView(context: Context) : View(context) {
 
         // 5. Center Readout with Detent Pulse
         topLabelPaint.textSize = size * 0.068f
-        centerValuePaint.textSize = size * 0.22f * pulseScale
-        bottomSubPaint.textSize = size * 0.068f
-        hintPaint.textSize = size * 0.052f
+        centerValuePaint.textSize = size * 0.24f * pulseScale
+        bottomSubPaint.textSize = size * 0.072f
 
-        canvas.drawText("DELAY DIAL", cx, cy - radius * 0.42f, topLabelPaint)
-        canvas.drawText("${delaySec}s", cx, cy + (size * 0.22f) * 0.28f, centerValuePaint)
+        canvas.drawText("INTERVAL", cx, cy - radius * 0.38f, topLabelPaint)
+        canvas.drawText("${delaySec}s", cx, cy + (size * 0.24f) * 0.28f, centerValuePaint)
 
         val cascade = when (screenCount) {
-            1 -> "+${delaySec}s delay"
+            1 -> "+${delaySec}s"
             2 -> "+${delaySec}s • +${delaySec * 2}s"
             else -> "+${delaySec}s • +${delaySec * 2}s • +${delaySec * 3}s"
         }
-        canvas.drawText(cascade, cx, cy + radius * 0.44f, bottomSubPaint)
-        canvas.drawText("Spin or tap ring (1–30s)", cx, cy + radius * 0.64f, hintPaint)
+        canvas.drawText(cascade, cx, cy + radius * 0.50f, bottomSubPaint)
     }
 }
