@@ -4,6 +4,11 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.os.Build
+import android.os.VibrationAttributes
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.text.TextUtils
 import android.util.TypedValue
 import android.view.Gravity
@@ -54,7 +59,7 @@ object GoogleStyleWidgets {
             setPadding(dp(context, 10), dp(context, 8), dp(context, 12), dp(context, 8))
             background = roundedDrawable(context, bgHex, 24)
             setOnClickListener {
-                try { performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK) } catch (_: Exception) {}
+                performClickHaptic(this)
                 onClick(this)
             }
         }
@@ -122,6 +127,35 @@ object GoogleStyleWidgets {
             popup.setOnMenuItemClickListener { item -> onSelected(item.itemId); true }
             popup.show()
         } catch (_: Exception) { onSelected((selectedIndex + 1) % options.size) }
+    }
+
+    @Suppress("DEPRECATION")
+    fun performClickHaptic(view: View) {
+        try {
+            view.isHapticFeedbackEnabled = true
+            view.performHapticFeedback(
+                HapticFeedbackConstants.KEYBOARD_TAP,
+                HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING or HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
+            )
+        } catch (_: Exception) {}
+        try {
+            val ctx = view.context
+            val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                (ctx.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
+            } else {
+                ctx.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            }
+            if (vibrator != null && vibrator.hasVibrator()) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    val attrs = VibrationAttributes.Builder().setUsage(VibrationAttributes.USAGE_HARDWARE_FEEDBACK).build()
+                    vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK), attrs)
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK))
+                } else {
+                    vibrator.vibrate(VibrationEffect.createOneShot(14L, 180))
+                }
+            }
+        } catch (_: Exception) {}
     }
 
     fun roundedDrawable(context: Context, bgHex: String, radiusDp: Int, strokeHex: String? = null): GradientDrawable = GradientDrawable().apply {

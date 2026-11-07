@@ -86,6 +86,7 @@ class DelayRingGaugeView(context: Context) : View(context) {
     init {
         isClickable = true
         isFocusable = true
+        isHapticFeedbackEnabled = true
     }
 
     fun updateState(delaySeconds: Int, screens: Int) {
@@ -99,14 +100,7 @@ class DelayRingGaugeView(context: Context) : View(context) {
     }
 
     private fun triggerIntervalDetentFeedback() {
-        try {
-            val constant = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                HapticFeedbackConstants.SEGMENT_FREQUENT_TICK
-            } else {
-                HapticFeedbackConstants.CLOCK_TICK
-            }
-            performHapticFeedback(constant)
-        } catch (_: Exception) {}
+        GoogleStyleWidgets.performClickHaptic(this)
         try {
             playSoundEffect(SoundEffectConstants.CLICK)
         } catch (_: Exception) {}
@@ -142,7 +136,12 @@ class DelayRingGaugeView(context: Context) : View(context) {
                 // Snap immediately to nearest interval (1s..30s, 12 deg each) on touch
                 val touchedSec = angleToIntervalSec(rawClockwiseDeg)
                 accumDeg = touchedSec * 12f
+                val changed = (touchedSec != delaySec)
                 applyUserDelaySelection(touchedSec)
+                if (!changed) {
+                    // Always give a tactile click when first grabbing the current dial position
+                    GoogleStyleWidgets.performClickHaptic(this)
+                }
                 invalidate()
                 return true
             }
