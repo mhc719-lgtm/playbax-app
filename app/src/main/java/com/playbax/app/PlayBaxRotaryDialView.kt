@@ -43,8 +43,7 @@ class DelayRingGaugeView(context: Context) : View(context) {
         strokeCap = Paint.Cap.ROUND
     }
     private val tickPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeCap = Paint.Cap.ROUND
+        style = Paint.Style.FILL
     }
     private val thumbHaloPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#40FF3D00")
@@ -222,13 +221,12 @@ class DelayRingGaugeView(context: Context) : View(context) {
         val sweepDeg = delaySec * 12f
         canvas.drawArc(arcRect, -90f, sweepDeg, false, activeArcPaint)
 
-        // 3. 30 Discrete Radial Detent Ticks around the outer/inner dial ring
-        val tickOuterR = radius + stroke * 0.66f
+        // 3. 30 Discrete Circular Dot Interval Stops around the outer dial ring
+        val dotOrbitR = radius + stroke * 0.74f
         for (i in 1..30) {
             val isMajor = (i % 5 == 0)
             val isReached = (i <= delaySec)
-            val tickLen = if (isMajor) stroke * 0.28f else stroke * 0.16f
-            tickPaint.strokeWidth = if (isMajor) size * 0.012f else size * 0.008f
+            val dotRadius = if (isMajor) size * 0.0155f else size * 0.010f
             tickPaint.color = when {
                 i == delaySec -> Color.parseColor("#FF1744")
                 isReached -> Color.parseColor("#FF6D00")
@@ -236,11 +234,9 @@ class DelayRingGaugeView(context: Context) : View(context) {
                 else -> Color.parseColor("#CBD2DC")
             }
             val angleRad = Math.toRadians((-90.0 + i * 12.0))
-            val cosA = cos(angleRad).toFloat()
-            val sinA = sin(angleRad).toFloat()
-            val rStart = tickOuterR
-            val rEnd = tickOuterR + tickLen
-            canvas.drawLine(cx + cosA * rStart, cy + sinA * rStart, cx + cosA * rEnd, cy + sinA * rEnd, tickPaint)
+            val dotX = cx + cos(angleRad).toFloat() * dotOrbitR
+            val dotY = cy + sin(angleRad).toFloat() * dotOrbitR
+            canvas.drawCircle(dotX, dotY, dotRadius, tickPaint)
         }
 
         // 4. Tactile Rotary Thumb Handle at exact stop angle (-90° + delaySec * 12°)

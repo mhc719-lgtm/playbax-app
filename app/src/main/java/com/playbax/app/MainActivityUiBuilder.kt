@@ -94,10 +94,10 @@ object MainActivityUiBuilder {
 
         // Top Centered Interactive 360° Rotary Finger Dial (1s–30s with detent clicks & haptics)
         val delayRingGauge = DelayRingGaugeView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(dp(context, 248), dp(context, 248)).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(context, 292), dp(context, 292)).apply {
                 gravity = Gravity.CENTER_HORIZONTAL
-                topMargin = dp(context, 4)
-                bottomMargin = dp(context, 16)
+                topMargin = dp(context, 2)
+                bottomMargin = dp(context, 14)
             }
         }
         setupBodyCol.addView(delayRingGauge)
