@@ -43,14 +43,10 @@ class PlayBaxSplashView(context: Context) : View(context) {
         textAlign = Paint.Align.CENTER
         typeface = Typeface.create("sans-serif-black", Typeface.BOLD)
     }
-    private val pillFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#FFE0D6")
-        style = Paint.Style.FILL
-    }
-    private val pillTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#FF3D00")
+    private val subtitlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#7A3E34")
         textAlign = Paint.Align.CENTER
-        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
     }
 
     init {
@@ -170,7 +166,7 @@ class PlayBaxSplashView(context: Context) : View(context) {
             canvas.drawPath(trianglePath, whiteShapePaint)
         }
 
-        // 5. Kinetic Wordmark & Studio Badge slide-in
+        // 5. Kinetic Wordmark & Subtitle slide-in (matching App Menu branding)
         val textPhase = ((progress - 0.25f) / 0.50f).coerceIn(0f, 1f)
         if (textPhase > 0f) {
             val yOffset = (1f - textPhase) * 18f * d
@@ -179,16 +175,9 @@ class PlayBaxSplashView(context: Context) : View(context) {
             val titleY = cy + baseRadius + 46f * d + yOffset
             canvas.drawText("PlayBax", cx, titleY, wordmarkPaint)
 
-            val pillW = 190f * d
-            val pillH = 28f * d
-            val pillTop = titleY + 16f * d
-            pillRect.set(cx - pillW * 0.5f, pillTop, cx + pillW * 0.5f, pillTop + pillH)
-            pillFillPaint.alpha = (textPhase * 255).toInt()
-            pillTextPaint.alpha = (textPhase * 255).toInt()
-            pillTextPaint.textSize = 11.5f * d
-            pillTextPaint.letterSpacing = 0.08f
-            canvas.drawRoundRect(pillRect, 999f, 999f, pillFillPaint)
-            canvas.drawText("INSTANT REPLAY STUDIO", cx, pillTop + pillH * 0.66f, pillTextPaint)
+            subtitlePaint.alpha = (textPhase * 255).toInt()
+            subtitlePaint.textSize = 14.5f * d
+            canvas.drawText("Live Delayed Video Playback", cx, titleY + 26f * d, subtitlePaint)
         }
     }
 }

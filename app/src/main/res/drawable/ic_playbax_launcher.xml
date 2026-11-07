@@ -6,7 +6,7 @@
     android:viewportWidth="48"
     android:viewportHeight="48">
 
-    <!-- Full-size Circular In-App PlayBax High-Energy Electric Orange-Red Emblem -->
+    <!-- Circular In-App PlayBax Emblem matching the exact static state of PlayBaxSplashView -->
     <path
         android:pathData="M24,0 A24,24 0 1,1 23.99,0 Z">
         <aapt:attr name="android:fillColor">
@@ -24,15 +24,21 @@
         </aapt:attr>
     </path>
 
+    <!-- 295° Replay Arc with Rounded Cap (ringR = 13.92, strokeWidth = 3.48, -90° to 205°) -->
     <path
-        android:fillColor="#E6FFFFFF"
-        android:pathData="M24,9.5 A14.5,14.5 0 1,1 9.7,26.4 L13.4,26.4 A10.8,10.8 0 1,0 24,13.2 Z" />
+        android:fillColor="#00000000"
+        android:pathData="M24,10.08 A13.92,13.92 0 1,1 11.38,18.12"
+        android:strokeWidth="3.48"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round" />
 
+    <!-- Replay Arrowhead at 12 o'clock -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M24,6.0 L24,14.8 L17.1,10.4 Z" />
+        android:pathData="M19.90,10.08 L26.05,6.66 L26.05,13.50 Z" />
 
+    <!-- Center Play Triangle -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M20.2,17.8 C20.2,16.5 21.6,15.8 22.7,16.5 L30.8,21.9 C31.8,22.5 31.8,24.0 30.8,24.7 L22.7,30.0 C21.6,30.8 20.2,30.0 20.2,28.7 Z" />
+        android:pathData="M20.70,18.90 L29.70,24.0 L20.70,29.10 Z" />
 </vector>

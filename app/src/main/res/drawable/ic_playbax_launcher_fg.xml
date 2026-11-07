@@ -5,16 +5,19 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Full-scale PlayBax white replay arc, arrow, and play glyph centered at (54,54) -->
+    <!-- Adaptive Icon Foreground matching the exact static state of PlayBaxSplashView (centered at 54,54) -->
     <path
-        android:fillColor="#E6FFFFFF"
-        android:pathData="M54,33.0 A21.0,21.0 0 1,1 33.3,57.4 L38.8,57.4 A15.6,15.6 0 1,0 54,38.4 Z" />
+        android:fillColor="#00000000"
+        android:pathData="M54,33.70 A20.30,20.30 0 1,1 35.60,45.42"
+        android:strokeWidth="5.08"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round" />
 
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M54,29.2 L54,42.2 L44.2,35.7 Z" />
+        android:pathData="M48.02,33.70 L56.99,28.71 L56.99,38.69 Z" />
 
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M48.6,45.0 C48.6,43.15 50.6,42.1 52.1,43.15 L63.9,50.9 C65.3,51.8 65.3,54.0 63.9,54.9 L52.1,62.7 C50.6,63.8 48.6,62.7 48.6,60.8 Z" />
+        android:pathData="M49.19,46.56 L62.31,54.0 L49.19,61.44 Z" />
 </vector>
