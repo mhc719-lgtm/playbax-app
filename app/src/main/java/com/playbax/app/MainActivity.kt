@@ -138,23 +138,30 @@ class MainActivity : AppCompatActivity() {
             PlayBaxPreferences.setDelaySeconds(this, selectedSec)
         }
 
-        ui.screensTile.card.setOnClickListener { anchor ->
-            val d = PlayBaxPreferences.getDelaySeconds(this)
-            val idx = (PlayBaxPreferences.getScreenCount(this) - 1).coerceIn(0, 2)
-            GoogleStyleWidgets.showGooglePopupMenu(this, anchor, PlayBaxPreferences.getScreenMenuOptions(d), idx) { PlayBaxPreferences.setScreenCount(this, it + 1) }
+        ui.screensTile.card.setOnClickListener { card ->
+            GoogleStyleWidgets.performClickHaptic(card)
+            PlayBaxPreferences.setScreenCount(this, (PlayBaxPreferences.getScreenCount(this) % 3) + 1)
         }
-        ui.layoutTile.card.setOnClickListener { anchor ->
-            GoogleStyleWidgets.showGooglePopupMenu(this, anchor, PlayBaxPreferences.getLayoutMenuOptions(), PlayBaxPreferences.getLayoutMode(this)) { PlayBaxPreferences.setLayoutMode(this, it) }
+        ui.layoutTile.card.setOnClickListener { card ->
+            GoogleStyleWidgets.performClickHaptic(card)
+            PlayBaxPreferences.setLayoutMode(this, (PlayBaxPreferences.getLayoutMode(this) + 1) % 3)
         }
-        ui.captureTile.card.setOnClickListener { anchor ->
-            val idx = if (PlayBaxPreferences.isRecordEnabled(this)) 1 else 0
-            GoogleStyleWidgets.showGooglePopupMenu(this, anchor, PlayBaxPreferences.getRecordMenuOptions(), idx) { PlayBaxPreferences.setRecordEnabled(this, it == 1) }
+        ui.captureTile.card.setOnClickListener { card ->
+            GoogleStyleWidgets.performClickHaptic(card)
+            PlayBaxPreferences.setRecordEnabled(this, !PlayBaxPreferences.isRecordEnabled(this))
         }
-        ui.lensTile.card.setOnClickListener { anchor ->
-            GoogleStyleWidgets.showGooglePopupMenu(this, anchor, PlayBaxPreferences.getLensMenuOptions(), PlayBaxPreferences.getLensMode(this)) { PlayBaxPreferences.setLensMode(this, it) }
+        ui.lensTile.card.setOnClickListener { card ->
+            GoogleStyleWidgets.performClickHaptic(card)
+            PlayBaxPreferences.setLensMode(this, (PlayBaxPreferences.getLensMode(this) + 1) % 3)
         }
-        ui.resetDefaultsBtn.setOnClickListener { resetDefaults() }
-        ui.applyLaunchBtn.setOnClickListener { triggerStartCamera() }
+        ui.resetDefaultsBtn.setOnClickListener {
+            GoogleStyleWidgets.performClickHaptic(it)
+            resetDefaults()
+        }
+        ui.applyLaunchBtn.setOnClickListener {
+            GoogleStyleWidgets.performClickHaptic(it)
+            triggerStartCamera()
+        }
     }
 
     private fun triggerStartCamera() {
