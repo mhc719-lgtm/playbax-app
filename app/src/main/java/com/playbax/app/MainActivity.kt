@@ -16,7 +16,6 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ScrollView
-import android.widget.SeekBar
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
@@ -67,7 +66,12 @@ class MainActivity : AppCompatActivity() {
             onOpenClips = { openClipsTab() }, onResetSettings = { resetDefaults() }
         )
         ui.rootFrame.addView(userMenuOverlay, FrameLayout.LayoutParams(-1, -1))
+        ui.rootFrame.addView(ui.splashOverlay, FrameLayout.LayoutParams(-1, -1))
         setContentView(ui.rootFrame)
+
+        if (savedInstanceState == null) {
+            ui.splashOverlay.playSplashAnimation {}
+        }
 
         cameraEngine = PlayBaxCameraEngine(
             context = this, lifecycleOwner = this, previewView = stage.previewView, ringBuffer = ringBuffer,
@@ -129,6 +133,11 @@ class MainActivity : AppCompatActivity() {
         ui.badgeCircle.setOnClickListener { openUserMenu() }
         ui.navSetupTab.rootTab.setOnClickListener { isShowingClipsTab = false; syncUiState() }
         ui.navClipsTab.rootTab.setOnClickListener { openClipsTab() }
+
+        ui.delayRingGauge.onDelaySelected = { selectedSec ->
+            PlayBaxPreferences.setDelaySeconds(this, selectedSec)
+        }
+
         ui.screensTile.card.setOnClickListener { anchor ->
             val d = PlayBaxPreferences.getDelaySeconds(this)
             val idx = (PlayBaxPreferences.getScreenCount(this) - 1).coerceIn(0, 2)
@@ -143,22 +152,6 @@ class MainActivity : AppCompatActivity() {
         }
         ui.lensTile.card.setOnClickListener { anchor ->
             GoogleStyleWidgets.showGooglePopupMenu(this, anchor, PlayBaxPreferences.getLensMenuOptions(), PlayBaxPreferences.getLensMode(this)) { PlayBaxPreferences.setLensMode(this, it) }
-        }
-        ui.cascadeTile.card.setOnClickListener { PlayBaxPreferences.setScreenCount(this, (PlayBaxPreferences.getScreenCount(this) % 3) + 1) }
-        ui.minusBtn.setOnClickListener { PlayBaxPreferences.setDelaySeconds(this, PlayBaxPreferences.getDelaySeconds(this) - 1) }
-        ui.plusBtn.setOnClickListener { PlayBaxPreferences.setDelaySeconds(this, PlayBaxPreferences.getDelaySeconds(this) + 1) }
-        ui.delaySlider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                if (fromUser) PlayBaxPreferences.setDelaySeconds(this@MainActivity, progress + PlayBaxPreferences.MIN_DELAY_SECONDS)
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
-        ui.presetButtons.forEach { (sec, btn) ->
-            btn.setOnClickListener {
-                try { btn.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK) } catch (_: Exception) {}
-                PlayBaxPreferences.setDelaySeconds(this, sec)
-            }
         }
         ui.resetDefaultsBtn.setOnClickListener { resetDefaults() }
         ui.applyLaunchBtn.setOnClickListener { triggerStartCamera() }
@@ -228,15 +221,6 @@ class MainActivity : AppCompatActivity() {
         ui.captureTile.valueText.text = if (recordEnabled) "Manual ● Rec" else "Memory Only"
         ui.captureTile.subtitleText.text = if (recordEnabled) "Tap ● Rec in feed" else "Unrecorded RAM"
         ui.lensTile.valueText.text = PlayBaxPreferences.getLensChipLabel(lensMode)
-        ui.cascadeTile.valueText.text = cascadeStr
-
-        val targetProgress = delaySec - PlayBaxPreferences.MIN_DELAY_SECONDS
-        if (ui.delaySlider.progress != targetProgress) ui.delaySlider.progress = targetProgress
-        ui.presetButtons.forEach { (sec, btn) ->
-            val sel = (sec == delaySec)
-            btn.background = GoogleStyleWidgets.roundedDrawable(this, if (sel) GoogleStyleWidgets.BRAND_ORANGE_PRIMARY else "#EEF1F6", 999)
-            btn.setTextColor(Color.parseColor(if (sel) "#FFFFFF" else GoogleStyleWidgets.TEXT_DARK))
-        }
 
         ui.setupBodyCol.visibility = if (isShowingClipsTab) View.GONE else View.VISIBLE
         ui.clipsBodyCol.visibility = if (isShowingClipsTab) View.VISIBLE else View.GONE

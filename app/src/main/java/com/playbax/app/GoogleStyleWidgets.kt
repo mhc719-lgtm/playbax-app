@@ -1,16 +1,9 @@
 package com.playbax.app
 
 import android.content.Context
-import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.LinearGradient
-import android.graphics.Paint
-import android.graphics.RectF
-import android.graphics.Shader
 import android.graphics.Typeface
-import android.graphics.drawable.ClipDrawable
 import android.graphics.drawable.GradientDrawable
-import android.graphics.drawable.LayerDrawable
 import android.text.TextUtils
 import android.util.TypedValue
 import android.view.Gravity
@@ -20,80 +13,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupMenu
-import android.widget.SeekBar
 import android.widget.TextView
-
-class DelayRingGaugeView(context: Context) : View(context) {
-
-    private var delaySec: Int = 5
-    private var screenCount: Int = 1
-    private val arcRect = RectF()
-
-    private val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#E8ECF2")
-        style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND
-    }
-    private val activeArcPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND
-    }
-    private val topLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#4E525A"); textAlign = Paint.Align.CENTER
-        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-    }
-    private val centerValuePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#1B1B1F"); textAlign = Paint.Align.CENTER
-        typeface = Typeface.create("sans-serif", Typeface.BOLD)
-    }
-    private val bottomSubPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#FF3D00"); textAlign = Paint.Align.CENTER
-        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-    }
-
-    fun updateState(delaySeconds: Int, screens: Int) {
-        this.delaySec = delaySeconds.coerceIn(1, 30)
-        this.screenCount = screens.coerceIn(1, 3)
-        invalidate()
-    }
-
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
-        val w = width.toFloat(); val h = height.toFloat()
-        if (w <= 0f || h <= 0f) return
-
-        val size = minOf(w, h)
-        val stroke = size * 0.14f
-        trackPaint.strokeWidth = stroke; activeArcPaint.strokeWidth = stroke
-
-        val pad = stroke * 0.85f
-        val cx = w * 0.5f; val cy = h * 0.5f
-        val radius = (size * 0.5f) - pad
-        arcRect.set(cx - radius, cy - radius, cx + radius, cy + radius)
-
-        activeArcPaint.shader = LinearGradient(
-            arcRect.left, arcRect.top, arcRect.right, arcRect.bottom,
-            intArrayOf(Color.parseColor("#FF1744"), Color.parseColor("#FF3D00"), Color.parseColor("#FF6D00")),
-            null, Shader.TileMode.CLAMP
-        )
-
-        canvas.drawOval(arcRect, trackPaint)
-        val sweep = (delaySec / 30f).coerceIn(0.08f, 1f) * 300f
-        canvas.drawArc(arcRect, 120f, sweep, false, activeArcPaint)
-
-        topLabelPaint.textSize = size * 0.082f
-        centerValuePaint.textSize = size * 0.24f
-        bottomSubPaint.textSize = size * 0.078f
-
-        canvas.drawText("Delay interval", cx, cy - radius * 0.36f, topLabelPaint)
-        canvas.drawText("${delaySec}s", cx, cy + centerValuePaint.textSize * 0.28f, centerValuePaint)
-
-        val cascade = when (screenCount) {
-            1 -> "+${delaySec}s"
-            2 -> "+${delaySec}s • +${delaySec * 2}s"
-            else -> "+${delaySec}s•+${delaySec * 2}s•+${delaySec * 3}s"
-        }
-        canvas.drawText(cascade, cx, cy + radius * 0.56f, bottomSubPaint)
-    }
-}
 
 class PastelBentoTileRefs(val card: LinearLayout, val valueText: TextView, val subtitleText: TextView)
 class HealthBottomNavTabRefs(val rootTab: LinearLayout, val iconPill: FrameLayout, val iconView: ImageView, val labelText: TextView)
@@ -193,43 +113,6 @@ object GoogleStyleWidgets {
         tab.iconView.setColorFilter(Color.parseColor(if (active) BRAND_ORANGE_PRIMARY else TEXT_MUTED))
         tab.labelText.setTextColor(Color.parseColor(if (active) BRAND_ORANGE_PRIMARY else TEXT_MUTED))
         tab.labelText.typeface = Typeface.create("sans-serif-medium", if (active) Typeface.BOLD else Typeface.NORMAL)
-    }
-
-    fun styleLightGoogleSlider(context: Context, seekBar: SeekBar) {
-        val trackHeight = dp(context, 12); val radius = dp(context, 999).toFloat()
-        val bgTrack = GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE; cornerRadius = radius
-            setColor(Color.parseColor("#E8ECF2")); setSize(-1, trackHeight)
-        }
-        val activeProgressRect = GradientDrawable(
-            GradientDrawable.Orientation.LEFT_RIGHT,
-            intArrayOf(Color.parseColor("#FF1744"), Color.parseColor("#FF3D00"), Color.parseColor("#FF6D00"))
-        ).apply { shape = GradientDrawable.RECTANGLE; cornerRadius = radius; setSize(-1, trackHeight) }
-
-        val progressClip = ClipDrawable(activeProgressRect, Gravity.START, ClipDrawable.HORIZONTAL)
-        val layerDrawable = LayerDrawable(arrayOf(bgTrack, progressClip)).apply {
-            setId(0, android.R.id.background); setId(1, android.R.id.progress)
-        }
-        val thumbSize = dp(context, 24)
-        val thumbDrawable = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL; setSize(thumbSize, thumbSize)
-            setColor(Color.parseColor(BRAND_ORANGE_PRIMARY)); setStroke(dp(context, 3), Color.WHITE)
-        }
-        seekBar.progressDrawable = layerDrawable; seekBar.thumb = thumbDrawable
-        seekBar.splitTrack = false
-        seekBar.setPadding(dp(context, 12), dp(context, 6), dp(context, 12), dp(context, 6))
-    }
-
-    fun createLightStepperButton(context: Context, symbol: String, onClick: () -> Unit): TextView = TextView(context).apply {
-        text = symbol; gravity = Gravity.CENTER; setTextColor(Color.parseColor(BRAND_ORANGE_PRIMARY))
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
-        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-        background = roundedDrawable(context, SOFT_PEACH_PILL, 999)
-        layoutParams = LinearLayout.LayoutParams(dp(context, 38), dp(context, 38))
-        setOnClickListener {
-            try { performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK) } catch (_: Exception) {}
-            onClick()
-        }
     }
 
     fun showGooglePopupMenu(context: Context, anchor: View, options: List<String>, selectedIndex: Int, onSelected: (Int) -> Unit) {

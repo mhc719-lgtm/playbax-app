@@ -9,7 +9,6 @@ import android.view.View
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
-import android.widget.SeekBar
 import android.widget.TextView
 
 class MainActivityViews(
@@ -24,11 +23,6 @@ class MainActivityViews(
     val layoutTile: PastelBentoTileRefs,
     val captureTile: PastelBentoTileRefs,
     val lensTile: PastelBentoTileRefs,
-    val cascadeTile: PastelBentoTileRefs,
-    val minusBtn: TextView,
-    val delaySlider: SeekBar,
-    val plusBtn: TextView,
-    val presetButtons: List<Pair<Int, TextView>>,
     val resetDefaultsBtn: TextView,
     val applyLaunchBtn: TextView,
     val navSetupTab: HealthBottomNavTabRefs,
@@ -38,7 +32,8 @@ class MainActivityViews(
     val lowVisControlPill: LinearLayout,
     val recordActionBtn: TextView,
     val freezeToggleBtn: TextView,
-    val stopToHomeBtn: TextView
+    val stopToHomeBtn: TextView,
+    val splashOverlay: PlayBaxSplashView
 )
 
 object MainActivityUiBuilder {
@@ -61,7 +56,7 @@ object MainActivityUiBuilder {
         val topHeader = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 16) }
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 14) }
         }
         val topModePill = TextView(context).apply {
             text = "1080p • OIS+EIS"
@@ -88,92 +83,64 @@ object MainActivityUiBuilder {
         topHeader.addView(badgeCircle)
         homeCol.addView(topHeader)
 
-        val setupBodyCol = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+        val setupBodyCol = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+        }
         val clipsBodyCol = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             visibility = View.GONE
         }
 
-        // Row 1: Strict 50% / 50% (1f : 1f) Symmetry — 220dp Left Gauge == 3 × 68dp + 2 × 8dp Right Stack
-        val heroBentoRow = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 8) }
-        }
+        // Top Centered Interactive 360° Rotary Finger Dial (1s–30s with detent clicks & haptics)
         val delayRingGauge = DelayRingGaugeView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(0, dp(context, 220), 1f).apply { rightMargin = dp(context, 5) }
+            layoutParams = LinearLayout.LayoutParams(dp(context, 248), dp(context, 248)).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+                topMargin = dp(context, 4)
+                bottomMargin = dp(context, 16)
+            }
         }
-        val rightStack = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(0, dp(context, 220), 1f).apply { leftMargin = dp(context, 5) }
-        }
-        val screensTile = GoogleStyleWidgets.createPastelBentoTile(context, "#FF9E80", "▣", "#FF3D00", "Playback screens", "1 Screen", "Tap to switch 1–3") {}
-        val layoutTile = GoogleStyleWidgets.createPastelBentoTile(context, "#EEF1F6", "⇅", "#1B1B1F", "Screen layout", "Auto Rotate", "Stacked / Side") {}
-        val captureTile = GoogleStyleWidgets.createPastelBentoTile(context, "#FCE4EC", "●", "#FF1744", "Capture mode", "Memory Only", "Unrecorded RAM") {}
+        setupBodyCol.addView(delayRingGauge)
 
-        rightStack.addView(screensTile.card, LinearLayout.LayoutParams(-1, dp(context, 68)).apply { bottomMargin = dp(context, 8) })
-        rightStack.addView(layoutTile.card, LinearLayout.LayoutParams(-1, dp(context, 68)).apply { bottomMargin = dp(context, 8) })
-        rightStack.addView(captureTile.card, LinearLayout.LayoutParams(-1, dp(context, 68)))
-        heroBentoRow.addView(delayRingGauge)
-        heroBentoRow.addView(rightStack)
-        setupBodyCol.addView(heroBentoRow)
-
-        // Row 2: Strict 50% / 50% (1f : 1f) Symmetry — 68dp Fixed Card Height & 10dp Center Gutter
-        val secondBentoRow = LinearLayout(context).apply {
+        // Symmetric 2x2 Bento Grid Below the Dial (Strict 1f : 1f 50%/50% width, 68dp card height, 10dp center gutter)
+        val bentoRow1 = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 12) }
-        }
-        val lensTile = GoogleStyleWidgets.createPastelBentoTile(context, "#EEF1F6", "◎", "#FF3D00", "Camera lens", "1.0x Rear", "Tap to switch lens") {}
-        val cascadeTile = GoogleStyleWidgets.createPastelBentoTile(context, "#FF9E80", "⏱", "#D50000", "Delay cascade", "+5s behind", "1–30s memory loop") {}
-        secondBentoRow.addView(lensTile.card, LinearLayout.LayoutParams(0, dp(context, 68), 1f).apply { rightMargin = dp(context, 5) })
-        secondBentoRow.addView(cascadeTile.card, LinearLayout.LayoutParams(0, dp(context, 68), 1f).apply { leftMargin = dp(context, 5) })
-        setupBodyCol.addView(secondBentoRow)
-
-        val sliderSection = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(context, 16), dp(context, 12), dp(context, 16), dp(context, 12))
-            background = GoogleStyleWidgets.roundedDrawable(context, "#FFFFFF", 24, "#E8ECF2")
-            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 12) }
-        }
-        val sliderRow = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
             layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 10) }
         }
-        val minusBtn = GoogleStyleWidgets.createLightStepperButton(context, "−") {}
-        val delaySlider = SeekBar(context).apply {
-            max = PlayBaxPreferences.MAX_DELAY_SECONDS - PlayBaxPreferences.MIN_DELAY_SECONDS
-            layoutParams = LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(context, 6); rightMargin = dp(context, 6) }
-        }
-        GoogleStyleWidgets.styleLightGoogleSlider(context, delaySlider)
-        val plusBtn = GoogleStyleWidgets.createLightStepperButton(context, "+") {}
-        sliderRow.addView(minusBtn); sliderRow.addView(delaySlider); sliderRow.addView(plusBtn)
-        sliderSection.addView(sliderRow)
+        val screensTile = GoogleStyleWidgets.createPastelBentoTile(
+            context, "#FF9E80", "▣", "#FF3D00", "Playback screens", "1 Screen", "+5s"
+        ) {}
+        val layoutTile = GoogleStyleWidgets.createPastelBentoTile(
+            context, "#EEF1F6", "⇅", "#1B1B1F", "Screen layout", "Auto (Stack)", "Portrait / Landscape"
+        ) {}
+        bentoRow1.addView(screensTile.card, LinearLayout.LayoutParams(0, dp(context, 68), 1f).apply { rightMargin = dp(context, 5) })
+        bentoRow1.addView(layoutTile.card, LinearLayout.LayoutParams(0, dp(context, 68), 1f).apply { leftMargin = dp(context, 5) })
+        setupBodyCol.addView(bentoRow1)
 
-        val presetsRow = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
-        val presetValues = listOf(3, 5, 10, 15, 30)
-        val presetButtons = presetValues.mapIndexed { idx, sec ->
-            val btn = TextView(context).apply {
-                text = "${sec}s"; gravity = Gravity.CENTER
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                setPadding(0, dp(context, 8), 0, dp(context, 8))
-            }
-            presetsRow.addView(btn, weightLp(context, 1f, if (idx < presetValues.size - 1) 6 else 0))
-            sec to btn
+        val bentoRow2 = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, 18) }
         }
-        sliderSection.addView(presetsRow)
-        setupBodyCol.addView(sliderSection)
+        val captureTile = GoogleStyleWidgets.createPastelBentoTile(
+            context, "#FCE4EC", "●", "#FF1744", "Capture mode", "Memory Only", "Unrecorded RAM"
+        ) {}
+        val lensTile = GoogleStyleWidgets.createPastelBentoTile(
+            context, "#FF9E80", "◎", "#FF3D00", "Camera lens", "1.0x Rear", "Tap to switch lens"
+        ) {}
+        bentoRow2.addView(captureTile.card, LinearLayout.LayoutParams(0, dp(context, 68), 1f).apply { rightMargin = dp(context, 5) })
+        bentoRow2.addView(lensTile.card, LinearLayout.LayoutParams(0, dp(context, 68), 1f).apply { leftMargin = dp(context, 5) })
+        setupBodyCol.addView(bentoRow2)
 
-        // Row 4: Symmetric 50% / 50% Action Buttons
+        // Symmetric 50% / 50% Action Buttons
         val actionRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(-1, -2)
         }
-        val resetDefaultsBtn = createPillButton(context, "↺  Reset", GoogleStyleWidgets.SOFT_PEACH_PILL, "#B71C1C", 50)
-        val applyLaunchBtn = createPillButton(context, "▶  Start Camera", GoogleStyleWidgets.BRAND_ORANGE_PRIMARY, "#FFFFFF", 50)
-        actionRow.addView(resetDefaultsBtn, LinearLayout.LayoutParams(0, dp(context, 50), 1f).apply { rightMargin = dp(context, 5) })
-        actionRow.addView(applyLaunchBtn, LinearLayout.LayoutParams(0, dp(context, 50), 1f).apply { leftMargin = dp(context, 5) })
+        val resetDefaultsBtn = createPillButton(context, "↺  Reset", GoogleStyleWidgets.SOFT_PEACH_PILL, "#B71C1C", 52)
+        val applyLaunchBtn = createPillButton(context, "▶  Start Camera", GoogleStyleWidgets.BRAND_ORANGE_PRIMARY, "#FFFFFF", 52)
+        actionRow.addView(resetDefaultsBtn, LinearLayout.LayoutParams(0, dp(context, 52), 1f).apply { rightMargin = dp(context, 5) })
+        actionRow.addView(applyLaunchBtn, LinearLayout.LayoutParams(0, dp(context, 52), 1f).apply { leftMargin = dp(context, 5) })
         setupBodyCol.addView(actionRow)
 
         homeCol.addView(setupBodyCol)
@@ -226,12 +193,14 @@ object MainActivityUiBuilder {
         cameraStageContainer.addView(lowVisControlPill, pillLp)
         root.addView(cameraStageContainer, FrameLayout.LayoutParams(-1, -1))
 
+        val splashOverlay = PlayBaxSplashView(context).apply { visibility = View.GONE }
+
         return MainActivityViews(
             root, homeContainer, topModePill, badgeCircle, setupBodyCol, clipsBodyCol,
-            delayRingGauge, screensTile, layoutTile, captureTile, lensTile, cascadeTile,
-            minusBtn, delaySlider, plusBtn, presetButtons, resetDefaultsBtn, applyLaunchBtn,
-            navSetupTab, navClipsTab, cameraStageContainer, stage,
-            lowVisControlPill, recordActionBtn, freezeToggleBtn, stopToHomeBtn
+            delayRingGauge, screensTile, layoutTile, captureTile, lensTile,
+            resetDefaultsBtn, applyLaunchBtn, navSetupTab, navClipsTab,
+            cameraStageContainer, stage, lowVisControlPill, recordActionBtn,
+            freezeToggleBtn, stopToHomeBtn, splashOverlay
         )
     }
 
@@ -253,11 +222,6 @@ object MainActivityUiBuilder {
         typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
         background = GoogleStyleWidgets.roundedDrawable(context, bgHex, 999)
         layoutParams = LinearLayout.LayoutParams(-1, dp(context, heightDp))
-    }
-
-    private fun weightLp(context: Context, weight: Float, rightMarginDp: Int, heightDp: Int = -2): LinearLayout.LayoutParams {
-        val h = if (heightDp > 0) dp(context, heightDp) else heightDp
-        return LinearLayout.LayoutParams(0, h, weight).apply { rightMargin = dp(context, rightMarginDp) }
     }
 
     private fun dp(context: Context, value: Int): Int = GoogleStyleWidgets.dp(context, value)
